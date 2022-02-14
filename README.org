@@ -1,0 +1,52 @@
+This package leverages tab-bar.el and project.el to create buffer-isolated
+workspaces. It should work with emacs 27+.
+
+** Installation
+
+This package is not currently on Melpa, so you'll have to clone or otherwise
+download the repo and put it into your load path. Here's one possible way of
+setting it up using [[https://github.com/jwiegley/use-package][use-package]] and [[https://github.com/raxod502/straight.el][straight]].
+
+#+begin_src emacs-lisp
+(use-package emacs-workspaces 
+  :straight (:type git :host github :repo "mclear-tools/emacs-workspaces")
+  :commands (emacs-workspaces/create-new-vc-project
+             emacs-workspaces/open-existing-project-and-workspace
+             emacs-workspaces/create-workspace))
+#+end_src
+
+** Setup
+
+Note that no keybindings are set.
+
+If you have [[https://github.com/minad/consult][consult]] installed this should seamlessly integrate workspace buffers
+into =consult-buffer=, displaying workspace buffers by default and all buffers
+when narrowing using "b".
+
+By default the =*scratch*= buffer is included in all workspaces. You can modify
+which buffers are included by changing the value of
+=emacs-workspaces-workspace-create-permitted-buffer-names=.
+
+If you want emacs to startup with initial buffers in a workspace you could do
+something like the following:
+
+#+begin_src emacs-lisp
+  (defun my--workspace-setup ()
+    "Set up workspace at startup."
+    ;; Add *Messages* and *splash* to Tab \`Home\'
+    (progn
+      (emacs-workspaces/create-workspace)
+      (tab-bar-rename-tab "Home")
+      (when (get-buffer "*Messages*")
+        (set-frame-parameter nil
+                             'buffer-list
+                             (cons (get-buffer "*Messages*")
+                                   (frame-parameter nil 'buffer-list))))
+      (when (get-buffer "*splash*")
+        (set-frame-parameter nil
+                             'buffer-list
+                             (cons (get-buffer "*splash*")
+                                   (frame-parameter nil 'buffer-list))))))
+
+  (add-hook 'after-init-hook #'my--workspace-setup)
+#+end_src
