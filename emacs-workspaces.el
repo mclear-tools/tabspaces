@@ -161,6 +161,16 @@ to the selected directory DIR."
       (project-vc-dir))
     (dired-jump-other-window)))
 
+;;;; Close Workspace
+;; Some convenience functions for closing workspaces and buffers
+;; these are just wrappers around built-in functions
+
+(defun emacs-workspace/close-workspace ()
+  (interactive)
+  (tab-bar-close-tab))
+
+;; TODO: add some functions to kill all the buffers in the workspace
+
 ;;; Provide
 (provide 'emacs-workspaces)
 
