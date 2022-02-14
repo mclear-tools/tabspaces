@@ -2,6 +2,11 @@ This package leverages tab-bar.el and project.el to create buffer-isolated
 workspaces. It should work with emacs 27+. It is tested to work with a single
 frame workflow, so I can't guarantee that it will work with multiple frames.
 
+While other great packages exist for managing workspaces, such as [[https://github.com/nex3/perspective-el][perspective.el]]
+and [[https://github.com/Bad-ptr/persp-mode.el][persp-mode.el]], this package is much less complex, and works entirely based on the
+built-in (to emacs 27+) tab-bar and project packages. That said, perspective or
+persp-mode may better fit your needs. 
+
 ** Basic Usage
 
 Calling the function =emacs-workspace/create-workspace= generates a new
