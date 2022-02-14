@@ -36,9 +36,11 @@
 (require 'vc)
 
 ;;;; Buffer Workspaces
-(defvar emacs-workspaces-workspace-create-permitted-buffer-names
+(defcustom emacs-workspaces-workspace-create-permitted-buffer-names
   '("*scratch*")
-  "List of buffer names kept by `emacs-workspace-create'.")
+  "List of buffer names kept by `emacs-workspace-create'."
+  :group emacs-workspaces
+  :type 'string)
 
 (defun emacs-workspaces/create-workspace (&optional arg)
   "Create a new tab/workspace with cleaned buffer lists.
