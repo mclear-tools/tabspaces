@@ -1,5 +1,6 @@
 This package leverages tab-bar.el and project.el to create buffer-isolated
-workspaces. It should work with emacs 27+.
+workspaces. It should work with emacs 27+. It is tested to work with a single
+frame workflow, so I can't guarantee that it will work with multiple frames.
 
 ** Installation
 
@@ -8,11 +9,11 @@ download the repo and put it into your load path. Here's one possible way of
 setting it up using [[https://github.com/jwiegley/use-package][use-package]] and [[https://github.com/raxod502/straight.el][straight]].
 
 #+begin_src emacs-lisp
-(use-package emacs-workspaces 
+(use-package emacs-workspaces
   :straight (:type git :host github :repo "mclear-tools/emacs-workspaces")
-  :commands (emacs-workspaces/create-new-vc-project
-             emacs-workspaces/open-existing-project-and-workspace
-             emacs-workspaces/create-workspace))
+  :commands (emacs-workspaces/create-workspace
+             emacs-workspaces/create-new-project-and-workspace
+             emacs-workspaces/open-existing-project-and-workspace))
 #+end_src
 
 ** Setup
