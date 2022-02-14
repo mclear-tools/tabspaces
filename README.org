@@ -20,9 +20,33 @@ setting it up using [[https://github.com/jwiegley/use-package][use-package]] and
 
 Note that no keybindings are set.
 
-If you have [[https://github.com/minad/consult][consult]] installed this should seamlessly integrate workspace buffers
-into =consult-buffer=, displaying workspace buffers by default and all buffers
-when narrowing using "b".
+If you have [[https://github.com/minad/consult][consult]] installed you might want to implement the following in your
+config:
+
+#+begin_src emacs-lisp
+  ;; Filter Buffers for Consult-Buffer
+
+  (with-eval-after-load 'consult
+    ;; hide full buffer list (still available with "b")
+    (consult-customize consult--source-buffer :hidden t :default nil)
+    ;; set consult-workspace buffer list
+    (defvar consult--source-workspace
+      (list :name     "Workspace Buffers"
+            :narrow   ?w
+            :category 'buffer
+            :state    #'consult--buffer-state
+            :default  t
+            :items    (lambda ()
+                        (emacs-workspaces--tab-bar-buffer-name-filter ((lambda () (consult--buffer-query :sort 'visibility
+                                                                                                    :as #'buffer-name))))))
+
+      "Set workspace buffer list for consult-buffer.")
+    (push consult--source-workspace consult-buffer-sources))
+#+end_src
+
+This should seamlessly integrate workspace buffers into =consult-buffer=,
+displaying workspace buffers by default and all buffers when narrowing using
+"b".
 
 By default the =*scratch*= buffer is included in all workspaces. You can modify
 which buffers are included by changing the value of
@@ -51,3 +75,5 @@ something like the following:
 
   (add-hook 'after-init-hook #'my--workspace-setup)
 #+end_src
+
+

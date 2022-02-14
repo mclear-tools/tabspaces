@@ -93,26 +93,6 @@ other functions, such as `helm-buffer-list'."
 
 (advice-add #'internal-complete-buffer :filter-return #'emacs-workspaces--tab-bar-buffer-name-filter)
 
-;;;;; Filter Buffers for Consult-Buffer
-
-(with-eval-after-load 'consult
-  ;; hide full buffer list (still available with "b")
-  (consult-customize consult--source-buffer :hidden t :default nil)
-  ;; set consult-workspace buffer list
-  (defvar consult--source-workspace
-    (list :name     "Workspace Buffers"
-          :narrow   ?w
-          :category 'buffer
-          :state    #'consult--buffer-state
-          :default  t
-          :items    (lambda ()
-                      (emacs-workspaces--tab-bar-buffer-name-filter ((lambda () (consult--buffer-query :sort 'visibility
-                                                                                                  :as #'buffer-name))))))
-
-    "Set workspace buffer list for consult-buffer.")
-  (push consult--source-workspace consult-buffer-sources))
-
-
 ;;;;; Project Workspace Commands
 
 (defun emacs-workspaces--name-tab-by-project-or-default ()
@@ -184,4 +164,4 @@ to the selected directory DIR."
 ;;; Provide
 (provide 'emacs-workspaces)
 
-;;; emacs-workspaces.el ends here
+;; emacs-workspaces.el ends here
