@@ -57,6 +57,7 @@
 (require 'tab-bar)
 (require 'project)
 (require 'vc)
+(require 'seq)
 
 ;;;; Buffer Workspaces
 
