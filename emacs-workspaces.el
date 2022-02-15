@@ -51,6 +51,9 @@
 
 ;;; Code:
 
+(defgroup emacs-workspaces nil
+  "Settings for emacs-workspaces")
+
 ;;;; Requirements
 
 (require 'tab-bar)
@@ -58,11 +61,11 @@
 (require 'vc)
 
 ;;;; Buffer Workspaces
-(defcustom emacs-workspaces-workspace-create-permitted-buffer-names
-  '("*scratch*")
+
+(defcustom emacs-workspaces-workspace-create-permitted-buffer-names '("*scratch*")
   "List of buffer names kept by `emacs-workspace-create'."
-  :group emacs-workspaces
-  :type 'string)
+  :type 'string
+  :group 'emacs-workspaces)
 
 (defun emacs-workspaces/create-workspace (&optional arg)
   "Create a new tab/workspace with cleaned buffer lists.
