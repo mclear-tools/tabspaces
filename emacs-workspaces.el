@@ -186,7 +186,7 @@ to the selected directory DIR."
 
 ;;;; Switch Workspace
 ;; Just a wrapper around tab-bar
-(defun emacs-workspace/switch-workspace ()
+(defun emacs-workspaces/switch-workspace ()
   "Switch workspace via tab-bar"
   (interactive)
   (tab-bar-select-tab-by-name))
@@ -195,7 +195,7 @@ to the selected directory DIR."
 ;; Some convenience functions for closing workspaces and buffers
 ;; these are just wrappers around built-in functions
 
-(defun emacs-workspace/close-workspace ()
+(defun emacs-workspaces/close-workspace ()
   "Close workspace"
   (interactive)
   (tab-bar-close-tab))
