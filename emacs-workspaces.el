@@ -184,11 +184,19 @@ to the selected directory DIR."
       (project-vc-dir))
     (dired-jump-other-window)))
 
+;;;; Switch Workspace
+;; Just a wrapper around tab-bar
+(defun emacs-workspace/switch-workspace ()
+  "Switch workspace via tab-bar"
+  (interactive)
+  (tab-bar-select-tab-by-name))
+
 ;;;; Close Workspace
 ;; Some convenience functions for closing workspaces and buffers
 ;; these are just wrappers around built-in functions
 
 (defun emacs-workspace/close-workspace ()
+  "Close workspace"
   (interactive)
   (tab-bar-close-tab))
 

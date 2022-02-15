@@ -18,8 +18,9 @@ buffer-isolated workspace using =tab.el= in the background. Using =switch-buffer
 list-buffers, ibuffer, etc. will show all buffers). Adding buffers to a
 workspace is as simple as opening the buffer in the workspace. Delete buffers
 from a workspace by killing them (there is no other way currently to remove
-them). You can close a workspace by invoking =emacs-workspace/close-workspace= or
-=tab-bar-close-tab=.
+them). Switch workspaces via =emacs-workspaces/switch-workspace= or
+=tab-bar-switch-tab=. You can close a workspace by invoking
+=emacs-workspaces/close-workspace= or =tab-bar-close-tab=.
 
 You may also open an existing version-controlled project in its own workspace
 using =emacs-workspaces/open-existing-project-and-workspace=, and create projects
@@ -40,7 +41,8 @@ setting it up using [[https://github.com/jwiegley/use-package][use-package]] and
   :straight (:type git :host github :repo "mclear-tools/emacs-workspaces")
   :commands (emacs-workspaces/create-workspace
              emacs-workspaces/create-new-project-and-workspace
-             emacs-workspaces/open-existing-project-and-workspace))
+             emacs-workspaces/open-existing-project-and-workspace
+             emacs-workspaces/switch-workspace))
 #+end_src
 
 ** Setup
