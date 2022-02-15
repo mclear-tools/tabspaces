@@ -1,7 +1,0 @@
-
-* TODO Add workspace close functions
-
-* TODO Multi-frame workspace functions?
-Not sure if these are needed -- haven't tested with a multi-frame workflow
-
-* TODO Add Tab-line integration

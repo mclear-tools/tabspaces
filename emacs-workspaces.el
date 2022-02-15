@@ -47,8 +47,6 @@
 ;; - https://www.rousette.org.uk/archives/using-the-tab-bar-in-emacs/
 ;; - https://github.com/minad/consult#multiple-sources
 
-;; Full documentation is available as an Info manual.
-
 ;;; Code:
 
 (defgroup emacs-workspaces nil
