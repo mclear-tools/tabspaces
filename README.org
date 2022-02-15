@@ -1,11 +1,14 @@
-This package leverages tab-bar.el and project.el to create buffer-isolated
-workspaces. It should work with emacs 27+. It is tested to work with a single
-frame workflow, so I can't guarantee that it will work with multiple frames.
+This package leverages [[https://github.com/emacs-mirror/emacs/blob/master/lisp/tab-bar.el][tab-bar.el]] and [[https://github.com/emacs-mirror/emacs/blob/master/lisp/progmodes/project.el][project.el]] (both built into emacs 27+) to
+create buffer-isolated workspaces that also integrate with your
+version-controlled projects. It should work with emacs 27+. It is tested to work
+with a single frame workflow, but I can't guarantee that it will work with
+multiple frames.
 
 While other great packages exist for managing workspaces, such as [[https://github.com/nex3/perspective-el][perspective.el]]
-and [[https://github.com/Bad-ptr/persp-mode.el][persp-mode.el]], this package is much less complex, and works entirely based on the
-built-in (to emacs 27+) tab-bar and project packages. That said, perspective or
-persp-mode may better fit your needs. 
+and [[https://github.com/Bad-ptr/persp-mode.el][persp-mode.el]], this package is much less complex, and works entirely based
+on the built-in (to emacs 27+) tab-bar and project packages. If you like simple,
+this may be the workspace package for you. That said, perspective or persp-mode
+may better fit your needs.
 
 ** Basic Usage
 
@@ -23,7 +26,7 @@ using =emacs-workspaces/open-existing-project-and-workspace=, and create project
 in their own workspace using =emacs-workspace/create-new-project-and-workspace=. 
 
 *NOTE* that this package does not modify =tab-bar=, =tab-line=, or =project= in any way.
-It simply add convenience functions for use with those packages. So it is still
+It simply adds convenience functions for use with those packages. So it is still
 up to the user to configure tabs, etc., however they like.  
 
 ** Installation
@@ -42,7 +45,7 @@ setting it up using [[https://github.com/jwiegley/use-package][use-package]] and
 
 ** Setup
 
-Note that no keybindings are set.
+*NOTE* that no keybindings are set.
 
 If you have [[https://github.com/minad/consult][consult]] installed you might want to implement the following in your
 config to have workspace buffers in =consult-buffer=:
@@ -70,14 +73,22 @@ config to have workspace buffers in =consult-buffer=:
 
 This should seamlessly integrate workspace buffers into =consult-buffer=,
 displaying workspace buffers by default and all buffers when narrowing using
-"b".
+"b". Note that you can also see all project related buffers and files just by
+narrowing with "p" in [[https://github.com/minad/consult#configuration][a default consult setup]] with the following:
+
+#+begin_src emacs-lisp 
+  (setq consult-project-root-function
+        (lambda ()
+          (when-let (project (project-current))
+            (car (project-roots project)))))
+#+end_src
 
 By default the =*scratch*= buffer is included in all workspaces. You can modify
 which buffers are included by changing the value of
 =emacs-workspaces-workspace-create-permitted-buffer-names=.
 
-If you want emacs to startup with initial buffers in a workspace you could do
-something like the following:
+If you want emacs to startup with initial buffers in a workspace (something I
+find works well) you could do something like the following:
 
 #+begin_src emacs-lisp
   (defun my--workspace-setup ()
