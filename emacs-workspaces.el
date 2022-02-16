@@ -117,19 +117,30 @@ other functions, such as `helm-buffer-list'."
 
 (advice-add #'internal-complete-buffer :filter-return #'emacs-workspaces--tab-bar-buffer-name-filter)
 
-;;;;; Project Workspace Commands
+;;;;; Project Workspace Helper Commands
+
+(defun emacs-workspaces--project-name ()
+  "Get name for project from vc-backend, otherwise return `-'"
+  (let ((path default-directory))
+    (file-name-nondirectory (directory-file-name
+                             (cond ((vc-root-dir)
+                                    (vc-root-dir))
+                                   ((vc-call-backend (vc-responsible-backend path)
+                                                     'root path))
+                                   ((not (buffer-file-name))
+                                    "-")
+                                   (t "-"))))))
 
 (defun emacs-workspaces--name-tab-by-project-or-default ()
   "Return project name if in a project, or default tab-bar name if not.
-The default tab-bar name uses the buffer name."
-  (let ((project-name (emacs-workspaces--project-name)))
-    (if (string= "-" project-name)
-        (tab-bar-tab-name-current)
-      (emacs-workspaces--project-name))))
-
-(defun emacs-workspaces--project-name ()
-  "Return name of project without path"
-  (file-name-nondirectory (directory-file-name (if (vc-root-dir) (vc-root-dir) "-"))))
+The default tab-bar name uses the buffer name along with a counter."
+  (let ((project-name (emacs-workspaces--project-name))
+        (tab (tab-bar-tab-name-current)))
+    (cond ((string= tab project-name)
+           (tab-bar-switch-to-tab tab))
+          ((string= "-" project-name)
+           (tab-bar-tab-name-current-with-count))
+          (t (emacs-workspaces--project-name)))))
 
 (defun emacs-workspaces/project-switch-project-open-file (dir)
   "Switch to another project by running an Emacs command.
