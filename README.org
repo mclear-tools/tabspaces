@@ -114,3 +114,14 @@ find works well) you could do something like the following:
 #+end_src
 
 
+
+** Acknowledgments
+Code for this package is directly derived from, or otherwise inspired by, a
+variety of sources. These include:
+
+- The original buffer filter function
+   + https://www.rousette.org.uk/archives/using-the-tab-bar-in-emacs/
+   + https://github.com/wamei/elscreen-separate-buffer-list/issues/8
+   + https://github.com/kaz-yos/emacs
+- Consult integration
+   + https://github.com/minad/consult#multiple-sources
