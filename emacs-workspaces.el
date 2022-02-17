@@ -7,7 +7,7 @@
 
 ;; Author: Colin McLear <mclear@fastmail.com>
 ;; Version: 1.0
-;; Package-Requires ((tab-bar) (project) (vc) (seq))
+;; Package-Requires ((tab-bar) (project) (vc) (seq) (cl-macs))
 ;; Keywords: workspaces, projects, tabs
 ;; URL: https://github.com/mclear-tools/emacs-workspaces
 
@@ -58,6 +58,7 @@
 (require 'project)
 (require 'vc)
 (require 'seq)
+(require 'cl-macs)
 
 ;;;; Variables
 
