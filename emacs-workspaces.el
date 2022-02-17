@@ -59,12 +59,14 @@
 (require 'vc)
 (require 'seq)
 
-;;;; Buffer Workspaces
+;;;; Variables
 
 (defcustom emacs-workspaces-workspace-create-permitted-buffer-names '("*scratch*")
   "List of buffer names kept by `emacs-workspace-create'."
   :type 'string
   :group 'emacs-workspaces)
+
+;;;; Create Buffer Workspace
 
 (defun emacs-workspaces/create-workspace (&optional arg)
   "Create a new tab/workspace with cleaned buffer lists.
@@ -112,12 +114,22 @@ other functions, such as `helm-buffer-list'."
                   (member elt buffer-names-to-keep))
                 buffer-names)))
 
-
 ;;;;; Filter Buffers for Switch-to-Buffer
 
 (advice-add #'internal-complete-buffer :filter-return #'emacs-workspaces--tab-bar-buffer-name-filter)
 
-;;;;; Project Workspace Helper Commands
+;;;; Project Workspace Helper Functions
+
+(defun emacs-workspaces--buffer-list-all ()
+  (cl-loop for b in (buffer-list)
+           for bn = (buffer-name b)
+           collect bn))
+
+(defun emacs-workspaces--list-workspaces ()
+  "Return a list of `tab-bar' tabs/workspaces, minus the current one."
+  (mapcar (lambda (tab)
+            (alist-get 'name tab))
+          (tab-bar--tabs-recent)))
 
 (defun emacs-workspaces--project-name ()
   "Get name for project from vc-backend, otherwise return `-'"
@@ -153,7 +165,7 @@ to the selected directory DIR."
         (project-current-inhibit-prompt t))
     (call-interactively 'project-find-file)))
 
-;;; New Project
+;;;; New VC Project
 (defun emacs-workspaces--create-new-vc-project ()
   "Initializes a new version control repo and adds it to project.el's known projects."
   (let ((project-dir (file-name-as-directory (expand-file-name
@@ -171,8 +183,9 @@ to the selected directory DIR."
       (let ((pr (project--find-in-directory default-directory)))
         (project-remember-project pr)))))
 
+;;;; Interactive Functions
+;;;;; Open Project in New Workspace
 
-;;;; Open Project in New Workspace
 (defun emacs-workspaces/open-existing-project-and-workspace ()
   "Open an existing project as its own workspace"
   (interactive)
@@ -181,7 +194,8 @@ to the selected directory DIR."
     (call-interactively 'emacs-workspaces/project-switch-project-open-file)
     (tab-bar-rename-tab (emacs-workspaces--name-tab-by-project-or-default))))
 
-;;;;  Create & Open New Project in New Workspace
+;;;;;  Create & Open New Project in New Workspace
+
 (defun emacs-workspaces/create-new-project-and-workspace ()
   "Create & open a new version-controlled project as its own workspace and create some useful files"
   (interactive)
@@ -196,14 +210,15 @@ to the selected directory DIR."
       (project-vc-dir))
     (dired-jump-other-window)))
 
-;;;; Switch Workspace
+;;;;; Switch Workspace
+
 ;; Just a wrapper around tab-bar
 (defun emacs-workspaces/switch-workspace ()
   "Switch workspace via tab-bar"
   (interactive)
   (tab-bar-select-tab-by-name))
 
-;;;; Close Workspace
+;;;;; Close Workspace
 ;; Some convenience functions for closing workspaces and buffers
 ;; these are just wrappers around built-in functions
 
@@ -212,7 +227,12 @@ to the selected directory DIR."
   (interactive)
   (tab-bar-close-tab))
 
-;; TODO: add some functions to kill all the buffers in the workspace
+(defun emacs-workspaces/kill-buffers-close-workspace ()
+  (interactive)
+  (let ((buf (emacs-workspaces--tab-bar-buffer-name-filter (emacs-workspaces--buffer-list-all))))
+    (cl-loop for b in buf
+             do (kill-buffer b))
+    (tab-bar-close-tab)))
 
 ;;; Provide
 (provide 'emacs-workspaces)
