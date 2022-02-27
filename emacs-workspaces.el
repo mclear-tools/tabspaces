@@ -185,6 +185,20 @@ to the selected directory DIR."
         (project-remember-project pr)))))
 
 ;;;; Interactive Functions
+;;;;; Switch to or Create Workspace
+
+(defun emacs-workspaces/switch-to-or-create-workspace ()
+  "Switch to existing workspace or, if workspace does not exist, then allow the creation of a new, named workspace on the fly."
+  (interactive)
+  (let* ((tab-names (mapcar (lambda (tab) (alist-get 'name tab)) (funcall tab-bar-tabs-function)))
+         (tab-name (completing-read "Switch to Workspace: " tab-names)))
+    (if (member tab-name tab-names)
+        (tab-bar-select-tab-by-name tab-name)
+      (progn
+        (emacs-workspaces/create-workspace)
+        (tab-bar-new-tab)
+        (tab-bar-rename-tab tab-name)))))
+
 ;;;;; Open Project in New Workspace
 
 (defun emacs-workspaces/open-existing-project-and-workspace ()
@@ -217,7 +231,7 @@ to the selected directory DIR."
 (defun emacs-workspaces/switch-workspace ()
   "Switch workspace via tab-bar"
   (interactive)
-  (tab-bar-select-tab-by-name))
+  (call-interactively 'tab-bar-switch-to-tab))
 
 ;;;;; Close Workspace
 ;; Some convenience functions for closing workspaces and buffers
