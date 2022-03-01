@@ -1,8 +1,7 @@
 This package leverages [[https://github.com/emacs-mirror/emacs/blob/master/lisp/tab-bar.el][tab-bar.el]] and [[https://github.com/emacs-mirror/emacs/blob/master/lisp/progmodes/project.el][project.el]] (both built into emacs 27+) to
 create buffer-isolated workspaces that also integrate with your
 version-controlled projects. It should work with emacs 27+. It is tested to work
-with a single frame workflow, but I can't guarantee that it will work with
-multiple frames.
+with a single frame workflow, but should work with multiple frames as well. 
 
 While other great packages exist for managing workspaces, such as [[https://github.com/alphapapa/bufler.el][bufler]],
 [[https://github.com/nex3/perspective-el][perspective]] and [[https://github.com/Bad-ptr/persp-mode.el][persp-mode]], this package is much less complex, and works

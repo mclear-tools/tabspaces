@@ -130,10 +130,6 @@ other functions, such as `helm-buffer-list'."
   "Return a list of `tab-bar' tabs/workspaces."
   (mapcar (lambda (tab) (alist-get 'name tab)) (tab-bar-tabs)))
 
-
-(defun emacs-workspaces--current-tab ()
-  (when (member (tab-bar--current-tab) (emacs-workspaces--list-workspaces))))
-
 (defun emacs-workspaces--project-name ()
   "Get name for project from vc-backend, otherwise return `-'"
   (let ((path default-directory))
