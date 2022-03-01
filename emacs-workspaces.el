@@ -127,10 +127,12 @@ other functions, such as `helm-buffer-list'."
            collect bn))
 
 (defun emacs-workspaces--list-workspaces ()
-  "Return a list of `tab-bar' tabs/workspaces, minus the current one."
-  (mapcar (lambda (tab)
-            (alist-get 'name tab))
-          (tab-bar--tabs-recent)))
+  "Return a list of `tab-bar' tabs/workspaces."
+  (mapcar (lambda (tab) (alist-get 'name tab)) (tab-bar-tabs)))
+
+
+(defun emacs-workspaces--current-tab ()
+  (when (member (tab-bar--current-tab) (emacs-workspaces--list-workspaces))))
 
 (defun emacs-workspaces--project-name ()
   "Get name for project from vc-backend, otherwise return `-'"
