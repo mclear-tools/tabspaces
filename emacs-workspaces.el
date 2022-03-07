@@ -243,9 +243,10 @@ to the selected directory DIR."
 (defun emacs-workspaces/kill-buffers-close-workspace ()
   (interactive)
   (let ((buf (emacs-workspaces--tab-bar-buffer-name-filter (emacs-workspaces--buffer-list-all))))
-    (cl-loop for b in buf
-             do (kill-buffer b))
-    (tab-bar-close-tab)))
+    (unwind-protect
+        (cl-loop for b in buf
+                 do (kill-buffer b))
+      (tab-bar-close-tab))))
 
 ;;; Provide
 (provide 'emacs-workspaces)
