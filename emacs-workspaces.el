@@ -7,7 +7,7 @@
 
 ;; Author: Colin McLear <mclear@fastmail.com>
 ;; Version: 1.0
-;; Package-Requires ((tab-bar) (project) (vc) (seq) (cl-macs))
+;; Package-Requires ((emacs "27.1") (tab-bar) (project "0.8.1") (vc) (seq "2.0") (cl-lib "1.0"))
 ;; Keywords: workspaces, projects, tabs
 ;; URL: https://github.com/mclear-tools/emacs-workspaces
 
