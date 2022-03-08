@@ -153,9 +153,9 @@ The default tab-bar name uses the buffer name along with a counter."
   "Switch to another project by running an Emacs command.
 Open file using project-find-file. NOTE: this function does *not*
 open or switch to a new workspace. Rather it switches to a new
-project and opens a file via completing-read.
+project and opens a file via completing-read. If you prefer to use the project.el command-menu, then use `project-switch-project'
 
-When called in a program, it will use the project corresponding
+When called, this function will use the project corresponding
 to the selected directory DIR."
   (interactive (list (project-prompt-project-dir)))
   (let ((default-directory dir)

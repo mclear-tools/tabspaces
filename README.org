@@ -47,19 +47,17 @@ setting it up using [[https://github.com/jwiegley/use-package][use-package]] and
 ** Setup
 
 *NOTE* that no keybindings are set. But here is a sample of how one might go about
-setting a keymap (using =bind-key=:
+setting a keymap (using =bind-key=):
 
 #+begin_src emacs-lisp
   ;;;; Workspace Keybindings
   (bind-keys :prefix-map +workspace-keys
              :prefix (concat leader-prefix " W")
-             ("c"  .  emacs-workspaces/close-workspace                    )
-             ("C"  .  emacs-workspaces/create-workspace                   )
+             ("c"  .  emacs-workspaces/create-workspace                   )
+             ("d"  .  emacs-workspaces/close-workspace                    )
              ("k"  .  emacs-workspaces/kill-buffers-close-workspace       )
-             ("p"  .  emacs-workspaces/project-switch-project-open-file   )
-             ("P"  .  emacs-workspaces/create-new-project-and-workspace   )
-             ("s"  .  emacs-workspaces/switch-workspace                   )
-             ("S"  .  emacs-workspaces/switch-to-or-create-workspace      )
+             ("n"  .  emacs-workspaces/create-new-project-and-workspace   )
+             ("s"  .  emacs-workspaces/switch-to-or-create-workspace      )
              ("w"  .  emacs-workspaces/open-existing-project-and-workspace))
 #+end_src
 
