@@ -131,31 +131,29 @@ other functions, such as `helm-buffer-list'."
   (mapcar (lambda (tab) (alist-get 'name tab)) (tab-bar-tabs)))
 
 (defun emacs-workspaces--project-name ()
-  "Get name for project from vc-backend, otherwise return `-'"
-  (let ((path default-directory))
-    (file-name-nondirectory (directory-file-name
-                             (cond ((vc-root-dir)
-                                    (vc-root-dir))
-                                   ((vc-call-backend (vc-responsible-backend path)
-                                                     'root path))
-                                   ((not (buffer-file-name))
-                                    "-")
-                                   (t "-"))))))
+  "Get name for project from vc, otherwise return buffer filename
+if not a project, or `-' if not visiting a file"
+  (let ((buf (buffer-file-name)))
+    (cond ((and buf (vc-registered buf))
+           (file-name-nondirectory (directory-file-name (vc-root-dir))))
+          (t "-"))))
 
-(defun emacs-workspaces--name-tab-by-project-or-default ()
-  "Return project name if in a project, or default tab-bar name if not.
+  (defun emacs-workspaces--name-tab-by-project-or-default ()
+    "Return project name if in a project, or default tab-bar name if not.
 The default tab-bar name uses the buffer name along with a counter."
-  (let ((project-name (emacs-workspaces--project-name))
-        (tab (tab-bar-tab-name-current)))
-    (cond ((string= tab project-name)
-           (tab-bar-switch-to-tab tab))
-          ((string= "-" project-name)
-           (tab-bar-tab-name-current-with-count))
-          (t (emacs-workspaces--project-name)))))
+    (let ((project-name (emacs-workspaces--project-name))
+          (tab (tab-bar-tab-name-current)))
+      (cond ((string= tab project-name)
+             (tab-bar-switch-to-tab tab))
+            ((string= "-" project-name)
+             (tab-bar-tab-name-current-with-count))
+            (t (emacs-workspaces--project-name)))))
 
 (defun emacs-workspaces/project-switch-project-open-file (dir)
   "Switch to another project by running an Emacs command.
-Open file using project-find-file
+Open file using project-find-file. NOTE: this function does *not*
+open or switch to a new workspace. Rather it switches to a new
+project and opens a file via completing-read.
 
 When called in a program, it will use the project corresponding
 to the selected directory DIR."
