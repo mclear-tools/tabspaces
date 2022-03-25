@@ -163,8 +163,8 @@ to the selected directory DIR."
 
 ;;;; New VC Project
 (defun emacs-workspaces--create-new-vc-project ()
-  "Initializes a new version control repo and adds it to
-project.el's known projects."
+  "Initialize a new version control repo and add it to project.el's
+known projects."
   (let ((project-dir (file-name-as-directory (expand-file-name
                                               (read-directory-name "New project root:")))))
     (progn
