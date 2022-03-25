@@ -185,7 +185,8 @@ known projects."
 
 ;;;###autoload
 (defun emacs-workspaces/switch-to-or-create-workspace ()
-  "Switch to existing workspace or, if workspace does not exist, then allow the creation of a new, named workspace on the fly."
+  "Switch to existing workspace or, if workspace does not exist,
+then allow the creation of a new, named workspace on the fly."
   (interactive)
   (let* ((tab-names (mapcar (lambda (tab) (alist-get 'name tab)) (funcall tab-bar-tabs-function)))
          (tab-name (completing-read "Switch to Workspace: " tab-names)))
@@ -222,7 +223,7 @@ available, otherwise it will use the built-in vc library."
     (delete-other-windows)
     (with-temp-buffer (write-file "project-todo.org"))
     (if (featurep 'magit)
-        (magit-status)
+        (magit-status-setup-buffer)
       (project-vc-dir))
     (dired-jump-other-window)))
 
