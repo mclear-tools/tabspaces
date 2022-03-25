@@ -1,33 +1,36 @@
-;; emacs-workspace.el  -*- lexical-binding: t; -*-
-;; Workspaces for emacs
+;;; emacs-workspaces.el --- leverage tab-bar and project for buffer-isolated workspaces  -*- lexical-binding: t -*-
 
-;;; Emacs Workspaces
+;; Author: Colin McLear <mclear@fastmail.com>
+;; Maintainer: Colin McLear
+;; Version: 1.0
+;; Package-Requires: ((emacs "27.1"))
+;; Keywords: convenience, frames
+;; Homepage: https://github.com/mclear-tools/emacs-workspaces
 
 ;; Copyright (C) 2022 Colin McLear
 
-;; Author: Colin McLear <mclear@fastmail.com>
-;; Version: 1.0
-;; Package-Requires ((emacs "27.1") (tab-bar) (project "0.8.1") (vc) (seq "2.0") (cl-lib "1.0"))
-;; Keywords: workspaces, projects, tabs
-;; URL: https://github.com/mclear-tools/emacs-workspaces
+;; This file is not part of GNU Emacs
 
-;; This program is free software: you can redistribute it and/or modify it under
-;; the terms of the GNU General Public License as published by the Free Software
-;; Foundation, either version 3 of the License, or (at your option) any later
-;; version. This program is distributed in the hope that it will be useful, but
-;; WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-;; FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
-;; details.
+;; This program is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
 
-;; You should have received a copy of the GNU General Public License along with
-;; this program. If not, see <https://www.gnu.org/licenses/>.
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
 ;; This package provides several functions to facilitate a single frame-based
-;; workspace with one workspace per tab, intergration with project.el (for
-;; project-based workspaces) and buffer isolation per tab. The package assumes
-;; project.el and tab-bar.el are both present (they are built-in to emacs 28+).
+;; workflow with one workspace per tab, integration with project.el (for
+;; project-based workspaces) and buffer isolation per tab (i.e. "workspace").
+;; The package assumes project.el and tab-bar.el are both present (they are
+;; built-in to emacs 27.1+).
 
 ;; This file is not part of GNU Emacs.
 
@@ -41,7 +44,8 @@
 ;;; Code:
 
 (defgroup emacs-workspaces nil
-  "Settings for emacs-workspaces")
+  "Settings for emacs-workspaces"
+  :group 'emacs-workspaces)
 
 ;;;; Requirements
 
@@ -49,14 +53,15 @@
 (require 'project)
 (require 'vc)
 (require 'seq)
-(require 'cl-macs)
+(require 'cl-lib)
 
 ;;;; Variables
 
 (defcustom emacs-workspaces-workspace-create-permitted-buffer-names '("*scratch*")
   "List of buffer names kept by `emacs-workspace-create'."
   :type 'string
-  :group 'emacs-workspaces)
+  :group 'convenience
+  :version "27.1")
 
 ;;;; Create Buffer Workspace
 
@@ -95,7 +100,7 @@ This is similar to `elscreen-create'."
 ;; https://github.com/kaz-yos/emacs/blob/master/init.d/200_tab-related.el#L74-L87
 
 (defun emacs-workspaces--tab-bar-buffer-name-filter (buffer-names)
-  "Filter BUFFER-NAMES by the current tab's buffer list
+  "Filter BUFFER-NAMES by the current tab's buffer list.
 It should be used to filter a list of buffer names created by
 other functions, such as `helm-buffer-list'."
   (let ((buffer-names-to-keep
@@ -113,6 +118,7 @@ other functions, such as `helm-buffer-list'."
 ;;;; Project Workspace Helper Functions
 
 (defun emacs-workspaces--buffer-list-all ()
+  "List all buffers for workspace."
   (cl-loop for b in (buffer-list)
            for bn = (buffer-name b)
            collect bn))
@@ -123,7 +129,7 @@ other functions, such as `helm-buffer-list'."
 
 (defun emacs-workspaces--project-name ()
   "Get name for project from vc, otherwise return buffer filename
-if not a project, or `-' if not visiting a file"
+if not a project, or `-' if not visiting a file."
   (let ((buf (buffer-file-name)))
     (cond ((and buf (vc-registered buf))
            (file-name-nondirectory (directory-file-name (vc-root-dir))))
@@ -144,7 +150,9 @@ The default tab-bar name uses the buffer name along with a counter."
   "Switch to another project by running an Emacs command.
 Open file using project-find-file. NOTE: this function does *not*
 open or switch to a new workspace. Rather it switches to a new
-project and opens a file via completing-read. If you prefer to use the project.el command-menu, then use `project-switch-project'
+project and opens a file via completing-read. If you prefer to
+use the project.el command-menu, then use
+`project-switch-project'
 
 When called, this function will use the project corresponding
 to the selected directory DIR."
@@ -155,7 +163,8 @@ to the selected directory DIR."
 
 ;;;; New VC Project
 (defun emacs-workspaces--create-new-vc-project ()
-  "Initializes a new version control repo and adds it to project.el's known projects."
+  "Initializes a new version control repo and adds it to
+project.el's known projects."
   (let ((project-dir (file-name-as-directory (expand-file-name
                                               (read-directory-name "New project root:")))))
     (progn
@@ -174,6 +183,7 @@ to the selected directory DIR."
 ;;;; Interactive Functions
 ;;;;; Switch to or Create Workspace
 
+;;;###autoload
 (defun emacs-workspaces/switch-to-or-create-workspace ()
   "Switch to existing workspace or, if workspace does not exist, then allow the creation of a new, named workspace on the fly."
   (interactive)
@@ -188,6 +198,7 @@ to the selected directory DIR."
 
 ;;;;; Open Project in New Workspace
 
+;;;###autoload
 (defun emacs-workspaces/open-existing-project-and-workspace ()
   "Open an existing project as its own workspace"
   (interactive)
@@ -198,8 +209,11 @@ to the selected directory DIR."
 
 ;;;;;  Create & Open New Project in New Workspace
 
+;;;###autoload
 (defun emacs-workspaces/create-new-project-and-workspace ()
-  "Create & open a new version-controlled project as its own workspace and create some useful files"
+  "Create & open a new version-controlled project as its own
+workspace and create some useful files. This will use magit if
+available, otherwise it will use the built-in vc library."
   (interactive)
   (progn
     (emacs-workspaces/create-workspace)
@@ -230,6 +244,7 @@ to the selected directory DIR."
   (tab-bar-close-tab))
 
 (defun emacs-workspaces/kill-buffers-close-workspace ()
+  "Kill all buffers in the workspace and then close the workspace itself."
   (interactive)
   (let ((buf (emacs-workspaces--tab-bar-buffer-name-filter (emacs-workspaces--buffer-list-all))))
     (unwind-protect
@@ -239,5 +254,4 @@ to the selected directory DIR."
 
 ;;; Provide
 (provide 'emacs-workspaces)
-
-;; emacs-workspaces.el ends here
+;;; emacs-workspaces.el ends here
