@@ -55,6 +55,9 @@
 (require 'seq)
 (require 'cl-lib)
 
+(declare-function magit-init "magit-status")
+(declare-function magit-status-setup-buffer "magit-status")
+
 ;;;; Variables
 
 (defcustom emacs-workspaces-workspace-create-permitted-buffer-names '("*scratch*")
