@@ -11,21 +11,21 @@ perspective or persp-mode, etc. may better fit your needs.
 
 ** Basic Usage
 
-Calling the function =emacs-workspace/create-workspace= generates a new
+Calling the function =workspace-create-workspace= generates a new
 buffer-isolated workspace using =tab.el= in the background. Using =switch-buffer=
 (for =consult= integration see below) will only show buffers in the workspace (but
 list-buffers, ibuffer, etc. will show all buffers). Adding buffers to a
 workspace is as simple as opening the buffer in the workspace. Delete buffers
 from a workspace by killing them (there is no other way currently to remove
 them). Switch or create workspaces via
-=emacs-workspaces/switch-to-or-create-workspace= (or =tab-bar-switch-tab=). You can
-close a workspace by invoking =emacs-workspaces/close-workspace= or
+=workspaces-switch-to-or-create-workspace= (or =tab-bar-switch-tab=). You can
+close a workspace by invoking =workspaces-close-workspace= or
 =tab-bar-close-tab=. You can close a workspace and kill all buffers associated
-with it using =emacs-workspaces/kill-buffers-close-workspace=. 
+with it using =workspaces-kill-buffers-close-workspace=. 
 
 You may also open an existing version-controlled project in its own workspace
-using =emacs-workspaces/open-existing-project-and-workspace=, and create projects
-in their own workspace using =emacs-workspace/create-new-project-and-workspace=. 
+using =workspaces-open-existing-project-and-workspace=, and create projects
+in their own workspace using =workspace-create-new-project-and-workspace=. 
 
 *NOTE* that this package does not modify =tab-bar=, =tab-line=, or =project= in any way.
 It simply adds convenience functions for use with those packages. So it is still
@@ -33,17 +33,18 @@ up to the user to configure tabs, etc., however they like.
 
 ** Installation
 
-This package is not currently on Melpa, so you'll have to clone or otherwise
-download the repo and put it into your load path. Here's one possible way of
-setting it up using [[https://github.com/jwiegley/use-package][use-package]] and [[https://github.com/raxod502/straight.el][straight]].
+Here's one possible way of setting up the package using [[https://github.com/jwiegley/use-package][use-package]] (and
+[[https://github.com/raxod502/straight.el][straight]] if you don't install via =package.el=). This package is currently in the
+queue for going on to MELPA. 
 
 #+begin_src emacs-lisp
 (use-package emacs-workspaces
+  ;; use this only if you also use straight, otherwise ignore it. 
   :straight (:type git :host github :repo "mclear-tools/emacs-workspaces")
-  :commands (emacs-workspaces/create-workspace
-             emacs-workspaces/create-new-project-and-workspace
-             emacs-workspaces/open-existing-project-and-workspace
-             emacs-workspaces/switch-workspace))
+  :commands (workspaces-create-workspace
+             workspaces-create-new-project-and-workspace
+             workspaces-open-existing-project-and-workspace
+             workspaces-switch-workspace))
 #+end_src
 
 ** Setup
@@ -55,12 +56,12 @@ setting a keymap (using =bind-key=):
   ;;;; Workspace Keybindings
   (bind-keys :prefix-map +workspace-keys
              :prefix (concat leader-prefix " W")
-             ("c"  .  emacs-workspaces/create-workspace                   )
-             ("d"  .  emacs-workspaces/close-workspace                    )
-             ("k"  .  emacs-workspaces/kill-buffers-close-workspace       )
-             ("n"  .  emacs-workspaces/create-new-project-and-workspace   )
-             ("s"  .  emacs-workspaces/switch-to-or-create-workspace      )
-             ("w"  .  emacs-workspaces/open-existing-project-and-workspace))
+             ("c"  .  workspaces-create-workspace                   )
+             ("d"  .  workspaces-close-workspace                    )
+             ("k"  .  workspaces-kill-buffers-close-workspace       )
+             ("n"  .  workspaces-create-new-project-and-workspace   )
+             ("s"  .  workspaces-switch-to-or-create-workspace      )
+             ("w"  .  workspaces-open-existing-project-and-workspace))
 #+end_src
 
 If you have [[https://github.com/minad/consult][consult]] installed you might want to implement the following in your
@@ -80,7 +81,7 @@ config to have workspace buffers in =consult-buffer=:
             :state    #'consult--buffer-state
             :default  t
             :items    (lambda ()
-                        (emacs-workspaces--tab-bar-buffer-name-filter ((lambda () (consult--buffer-query :sort 'visibility
+                        (workspaces--tab-bar-buffer-name-filter ((lambda () (consult--buffer-query :sort 'visibility
                                                                                                     :as #'buffer-name))))))
 
       "Set workspace buffer list for consult-buffer.")
@@ -111,7 +112,7 @@ find works well) you could do something like the following:
     "Set up workspace at startup."
     ;; Add *Messages* and *splash* to Tab \`Home\'
     (progn
-      (emacs-workspaces/create-workspace)
+      (workspaces-create-workspace)
       (tab-bar-rename-tab "Home")
       (when (get-buffer "*Messages*")
         (set-frame-parameter nil
