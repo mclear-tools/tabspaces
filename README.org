@@ -1,3 +1,7 @@
+(*NOTE:* In submitting the package to MELPA I've had to make some breaking changes
+wrt the namespace, etc. So please keep this in mind when pulling changes!)
+
+
 This package leverages [[https://github.com/emacs-mirror/emacs/blob/master/lisp/tab-bar.el][tab-bar.el]] and [[https://github.com/emacs-mirror/emacs/blob/master/lisp/progmodes/project.el][project.el]] (both built into emacs 27+) to
 create buffer-isolated workspaces that also integrate with your
 version-controlled projects. It should work with emacs 27+. It is tested to work

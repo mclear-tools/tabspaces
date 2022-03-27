@@ -63,11 +63,16 @@
 (defcustom workspaces-workspace-create-permitted-buffer-names '("*scratch*")
   "List of buffer names kept by `workspaces-create-workspace'."
   :type 'string
-  :group 'convenience
+  :group 'workspaces
   :version "27.1")
+
+(defcustom workspaces-use-filtered-buffers-as-default nil
+  "When t, remap `switch-to-buffer' to `workspaces-switch-to-buffer'."
+  :type 'boolean)
 
 ;;;; Create Buffer Workspace
 
+;;;###autoload
 (defun workspaces-create-workspace (&optional arg)
   "Create a new tab/workspace with cleaned buffer lists.
 
@@ -97,7 +102,7 @@ This is similar to `elscreen-create'."
 
 ;;;; Filter Workspace Buffers
 
-;;;;; Group Buffers By Tab
+;;;;; Filter Buffers By Tab
 ;; tab-bar version of separate buffer list filter
 ;; See https://github.com/wamei/elscreen-separate-buffer-list/issues/8
 ;; https://github.com/kaz-yos/emacs/blob/master/init.d/200_tab-related.el#L74-L87
@@ -114,17 +119,23 @@ other functions, such as `helm-buffer-list'."
                   (member elt buffer-names-to-keep))
                 buffer-names)))
 
-;;;;; Filter Buffers for Switch-to-Buffer
-
-(advice-add #'internal-complete-buffer :filter-return #'workspaces--tab-bar-buffer-name-filter)
-
-;;;; Project Workspace Helper Functions
+;;;;; Filtered Switch to Buffer Function
 
 (defun workspaces--buffer-list-all ()
   "List all buffers for workspace."
   (cl-loop for b in (buffer-list)
            for bn = (buffer-name b)
            collect bn))
+
+(defun workspaces-switch-to-buffer ()
+  "Filter open buffers on a per-workspace basis."
+  (interactive)
+  (switch-to-buffer
+   (completing-read "Switch to workspace buffer: "
+                    (workspaces--tab-bar-buffer-name-filter
+                     (workspaces--buffer-list-all)))))
+
+;;;; Project Workspace Helper Functions
 
 (defun workspaces--list-workspaces ()
   "Return a list of `tab-bar' tabs/workspaces."
@@ -226,7 +237,9 @@ available, otherwise it will use the built-in vc library."
     (delete-other-windows)
     (with-temp-buffer (write-file "project-todo.org"))
     (if (featurep 'magit)
-        (magit-status-setup-buffer)
+        (progn
+          (require 'magit)
+          (magit-status-setup-buffer))
       (project-vc-dir))
     (dired-jump-other-window)))
 
@@ -255,6 +268,32 @@ available, otherwise it will use the built-in vc library."
         (cl-loop for b in buf
                  do (kill-buffer b))
       (tab-bar-close-tab))))
+
+;;;; Define Minor Mode
+;;;###autoload
+(defvar workspaces-prefix-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-c C-w c") 'workspaces-create-workspace)
+    (define-key map (kbd "C-c C-w b") 'workspaces-switch-to-buffer)
+    (define-key map (kbd "C-c C-w d") 'workspaces-close-workspace)
+    (define-key map (kbd "C-c C-w k") 'workspaces-kill-buffers-close-workspace)
+    (define-key map (kbd "C-c C-w n") 'workspaces-create-new-project-and-workspace)
+    (define-key map (kbd "C-c C-w o") 'workspaces-open-existing-project-and-workspace)
+    (define-key map (kbd "C-c C-w s") 'workspaces-switch-to-or-create-workspace)
+    map)
+  "Keymap for workspace commands.")
+
+;;;###autoload
+(define-minor-mode workspaces-mode
+  "Create a global minor mode for buffer-isolated workspaces using
+Emacs `tab-bar' and `project.el'."
+  :lighter ""
+  :keymap workspaces-prefix-map
+  :global t
+
+  ;; Option to always use filtered buffers when minor mode is enabled.
+  (when workspaces-use-filtered-buffers-as-default
+    (define-key (current-global-map) [remap switch-to-buffer] #'workspaces-switch-to-buffer)))
 
 ;;; Provide
 (provide 'workspaces)
