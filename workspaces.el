@@ -142,8 +142,8 @@ other functions, such as `helm-buffer-list'."
   (mapcar (lambda (tab) (alist-get 'name tab)) (tab-bar-tabs)))
 
 (defun workspaces--project-name ()
-  "Get name for project from vc, otherwise return buffer filename
-if not a project, or `-' if not visiting a file."
+  "Get name for project from vc.
+If not a in project return buffer filename, or `-' if not visiting a file."
   (let ((buf (buffer-file-name)))
     (cond ((and buf (vc-registered buf))
            (file-name-nondirectory (directory-file-name (vc-root-dir))))
@@ -173,12 +173,11 @@ to the selected directory DIR."
   (interactive (list (project-prompt-project-dir)))
   (let ((default-directory dir)
         (project-current-inhibit-prompt t))
-    (call-interactively 'project-find-file)))
+    (call-interactively #'project-find-file)))
 
 ;;;; New VC Project
 (defun workspaces--create-new-vc-project ()
-  "Initialize a new version control repo and add it to project.el's
-known projects."
+  "Initialize a new version control repo and add it to project.el's known projects."
   (let ((project-dir (file-name-as-directory (expand-file-name
                                               (read-directory-name "New project root:")))))
     (progn
@@ -189,7 +188,7 @@ known projects."
             (magit-init project-dir))
         (progn
           (mkdir project-dir)
-          (call-interactively 'vc-create-repo)))
+          (call-interactively #'vc-create-repo)))
       ;; make sure project.el remembers new project
       (let ((pr (project--find-in-directory default-directory)))
         (project-remember-project pr)))))
@@ -199,8 +198,9 @@ known projects."
 
 ;;;###autoload
 (defun workspaces-switch-to-or-create-workspace ()
-  "Switch to existing workspace or, if workspace does not exist,
-then allow the creation of a new, named workspace on the fly."
+  "Switch to existing workspace.
+If workspace does not exist, then allow the creation of a
+new,named workspace on the fly."
   (interactive)
   (let* ((tab-names (mapcar (lambda (tab) (alist-get 'name tab)) (funcall tab-bar-tabs-function)))
          (tab-name (completing-read "Switch to Workspace: " tab-names)))
@@ -219,15 +219,15 @@ then allow the creation of a new, named workspace on the fly."
   (interactive)
   (progn
     (workspaces-create-workspace)
-    (call-interactively 'workspaces-project-switch-project-open-file)
+    (call-interactively #'workspaces-project-switch-project-open-file)
     (tab-bar-rename-tab (workspaces--name-tab-by-project-or-default))))
 
 ;;;;;  Create & Open New Project in New Workspace
 
 ;;;###autoload
 (defun workspaces-create-new-project-and-workspace ()
-  "Create & open a new version-controlled project as its own
-workspace and create some useful files. This will use magit if
+  "Create & open a new version-controlled project as its own workspace.
+Create a `project-todo.org' file. This will use magit if
 available, otherwise it will use the built-in vc library."
   (interactive)
   (progn
@@ -249,7 +249,7 @@ available, otherwise it will use the built-in vc library."
 (defun workspaces-switch-workspace ()
   "Switch workspace via tab-bar."
   (interactive)
-  (call-interactively 'tab-bar-switch-to-tab))
+  (call-interactively #'tab-bar-switch-to-tab))
 
 ;;;;; Close Workspace
 ;; Some convenience functions for closing workspaces and buffers
@@ -285,8 +285,8 @@ available, otherwise it will use the built-in vc library."
 
 ;;;###autoload
 (define-minor-mode workspaces-mode
-  "Create a global minor mode for buffer-isolated workspaces using
-Emacs `tab-bar' and `project.el'."
+  "Create a global minor mode for buffer-isolated workspaces.
+This uses Emacs `tab-bar' and `project.el'."
   :lighter ""
   :keymap workspaces-prefix-map
   :global t
