@@ -1,9 +1,8 @@
 (*NOTE:* In submitting the package to MELPA I've had to make some breaking changes
 wrt the namespace, etc. So please keep this in mind when pulling changes!)
 
-
-This package leverages [[https://github.com/emacs-mirror/emacs/blob/master/lisp/tab-bar.el][tab-bar.el]] and [[https://github.com/emacs-mirror/emacs/blob/master/lisp/progmodes/project.el][project.el]] (both built into emacs 27+) to
-create buffer-isolated workspaces that also integrate with your
+Tabspaces leverages [[https://github.com/emacs-mirror/emacs/blob/master/lisp/tab-bar.el][tab-bar.el]] and [[https://github.com/emacs-mirror/emacs/blob/master/lisp/progmodes/project.el][project.el]] (both built into emacs 27+) to
+create buffer-isolated workspaces (or "tabspaces") that also integrate with your
 version-controlled projects. It should work with emacs 27+. It is tested to work
 with a single frame workflow, but should work with multiple frames as well. 
 
@@ -15,21 +14,21 @@ perspective or persp-mode, etc. may better fit your needs.
 
 ** Basic Usage
 
-Calling the function =workspace-create-workspace= generates a new buffer-isolated
-workspace using =tab.el= in the background. Using =workspaces-switch-buffer= (for
+Calling the function =tabspaces-create-workspace= generates a new buffer-isolated
+workspace using =tab.el= in the background. Using =tabspaces-switch-buffer= (for
 =consult= integration see below) will only show buffers in the workspace (but
 list-buffers, ibuffer, etc. will show all buffers). Adding buffers to a
 workspace is as simple as opening the buffer in the workspace. Delete buffers
 from a workspace by killing them (there is no other way currently to remove
-them). Switch or create workspaces via =workspaces-switch-to-or-create-workspace=
+them). Switch or create workspaces via =tabspaces-switch-to-or-create-workspace=
 (or =tab-bar-switch-tab=). You can close a workspace by invoking
-=workspaces-close-workspace= or =tab-bar-close-tab=. You can close a workspace and
+=tabspaces-close-workspace= or =tab-bar-close-tab=. You can close a workspace and
 kill all buffers associated with it using
-=workspaces-kill-buffers-close-workspace=.
+=tabspaces-kill-buffers-close-workspace=.
 
 You may also open an existing version-controlled project in its own workspace
-using =workspaces-open-existing-project-and-workspace=, and create projects
-in their own workspace using =workspace-create-new-project-and-workspace=. 
+using =tabspaces-open-existing-project-and-workspace=, and create projects
+in their own workspace using =tabspaces-create-new-project-and-workspace=. 
 
 *NOTE* that this package does not modify =tab-bar=, =tab-line=, or =project= in any way.
 It simply adds convenience functions for use with those packages. So it is still
@@ -46,41 +45,41 @@ Here's one possible way of setting up the package using [[https://github.com/jwi
 [[https://github.com/raxod502/straight.el][straight]], if you use that).
 
 #+begin_src emacs-lisp
-(use-package workspaces
+(use-package tabspaces
   ;; use this next line only if you also use straight, otherwise ignore it. 
-  :straight (:type git :host github :repo "mclear-tools/emacs-workspaces")
-  :hook (after-init . workspaces-mode) ;; use this only if you want the minor-mode loaded at startup. 
-  :commands (workspaces-create-workspace
-             workspaces-create-new-project-and-workspace
-             workspaces-open-existing-project-and-workspace
-             workspaces-switch-workspace)
-  :custom (workspaces-use-filtered-buffers-as-default t))
+  :straight (:type git :host github :repo "mclear-tools/tabspaces")
+  :hook (after-init . tabspaces-mode) ;; use this only if you want the minor-mode loaded at startup. 
+  :commands (tabspaces-create-workspace
+             tabspaces-create-new-project-and-workspace
+             tabspaces-open-existing-project-and-workspace
+             tabspaces-switch-workspace)
+  :custom (tabspaces-use-filtered-buffers-as-default t))
 #+end_src
 
 *** Keybindings 
 Workspace Keybindings are defined in the following variable:
 
 #+begin_src emacs-lisp
-  (defvar workspaces-prefix-map
+  (defvar tabspaces-prefix-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c C-w c") 'workspaces-create-workspace)
-    (define-key map (kbd "C-c C-w b") 'workspaces-switch-to-buffer)
-    (define-key map (kbd "C-c C-w d") 'workspaces-close-workspace)
-    (define-key map (kbd "C-c C-w k") 'workspaces-kill-buffers-close-workspace)
-    (define-key map (kbd "C-c C-w n") 'workspaces-create-new-project-and-workspace)
-    (define-key map (kbd "C-c C-w o") 'workspaces-open-existing-project-and-workspace)
-    (define-key map (kbd "C-c C-w s") 'workspaces-switch-to-or-create-workspace)
+    (define-key map (kbd "C-c C-w c") 'tabspaces-create-workspace)
+    (define-key map (kbd "C-c C-w b") 'tabspaces-switch-to-buffer)
+    (define-key map (kbd "C-c C-w d") 'tabspaces-close-workspace)
+    (define-key map (kbd "C-c C-w k") 'tabspaces-kill-buffers-close-workspace)
+    (define-key map (kbd "C-c C-w n") 'tabspaces-create-new-project-and-workspace)
+    (define-key map (kbd "C-c C-w o") 'tabspaces-open-existing-project-and-workspace)
+    (define-key map (kbd "C-c C-w s") 'tabspaces-switch-to-or-create-workspace)
     map)
-  "Keymap for workspace commands.")
+  "Keymap for tabspaces/workspace commands.")
 #+end_src
 
 *** Buffer Filtering
 
-When =workspace-mode= is enabled use =workspaces-switch-to-buffer= to choose from a
+When =tabspaces-mode= is enabled use =tabspaces-switch-to-buffer= to choose from a
 filtered list of only those buffers in the current workspace. Though nil by
-default, when =workspaces-use-filtered-buffers-as-default= is set to 't' and
-=workspaces-mode= is enabled, =switch-to-buffer= is globally remapped to
-=workspaces-switch-to-buffer=, and thus only shows those buffers in the current
+default, when =tabspaces-use-filtered-buffers-as-default= is set to 't' and
+=tabspaces-mode= is enabled, =switch-to-buffer= is globally remapped to
+=tabspaces-switch-to-buffer=, and thus only shows those buffers in the current
 workspace. For use with =consult-buffer=, see below.
 
 *** Additional Customization
@@ -104,7 +103,7 @@ config to have workspace buffers in =consult-buffer=:
             :state    #'consult--buffer-state
             :default  t
             :items    (lambda ()
-                        (workspaces--tab-bar-buffer-name-filter ((lambda () (consult--buffer-query :sort 'visibility
+                        (tabspaces--tab-bar-buffer-name-filter ((lambda () (consult--buffer-query :sort 'visibility
                                                                                                     :as #'buffer-name))))))
 
       "Set workspace buffer list for consult-buffer.")
@@ -120,13 +119,13 @@ narrowing with "p" in [[https://github.com/minad/consult#configuration][a defaul
 
 By default the =*scratch*= buffer is included in all workspaces. You can modify
 which buffers are included by changing the value of
-=emacs-workspaces-workspace-create-permitted-buffer-names=.
+=tabspaces-workspace-create-permitted-buffer-names=.
 
 If you want emacs to startup with initial buffers in a workspace (something I
 find works well) you could do something like the following:
 
 #+begin_src emacs-lisp
-  (defun my--workspace-setup ()
+  (defun my--tabspace-setup ()
     "Set up workspace at startup."
     ;; Add *Messages* and *splash* to Tab \`Home\'
     (progn
@@ -143,7 +142,7 @@ find works well) you could do something like the following:
                              (cons (get-buffer "*splash*")
                                    (frame-parameter nil 'buffer-list))))))
 
-  (add-hook 'after-init-hook #'my--workspace-setup)
+  (add-hook 'after-init-hook #'my--tabspace-setup)
 #+end_src
 
 

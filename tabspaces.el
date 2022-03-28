@@ -1,11 +1,11 @@
-;;; workspaces.el --- Leverage tab-bar and project for buffer-isolated workspaces  -*- lexical-binding: t -*-
+;;; tabspaces.el --- Leverage tab-bar and project for buffer-isolated workspaces  -*- lexical-binding: t -*-
 
 ;; Author: Colin McLear <mclear@fastmail.com>
 ;; Maintainer: Colin McLear
 ;; Version: 1.0
-;; Package-Requires: ((emacs "27.1"))
+;; Package-Requires: ((emacs "27.1") (project "0.8.1"))
 ;; Keywords: convenience, frames
-;; Homepage: https://github.com/mclear-tools/emacs-workspaces
+;; Homepage: https://github.com/mclear-tools/tabspaces
 
 ;; Copyright (C) 2022 Colin McLear
 
@@ -28,9 +28,9 @@
 
 ;; This package provides several functions to facilitate a single frame-based
 ;; workflow with one workspace per tab, integration with project.el (for
-;; project-based workspaces) and buffer isolation per tab (i.e. "workspace").
-;; The package assumes project.el and tab-bar.el are both present (they are
-;; built-in to Emacs 27.1+).
+;; project-based workspaces) and buffer isolation per tab (i.e. a "tabspace"
+;; workspace). The package assumes project.el and tab-bar.el are both present
+;; (they are built-in to Emacs 27.1+).
 
 ;; This file is not part of GNU Emacs.
 
@@ -43,9 +43,9 @@
 
 ;;; Code:
 
-(defgroup workspaces nil
+(defgroup tabspaces nil
   "Settings for workspaces."
-  :group '-workspaces)
+  :group 'tabspaces)
 
 ;;;; Requirements
 
@@ -54,30 +54,31 @@
 (require 'vc)
 (require 'seq)
 (require 'cl-lib)
+(require 'dired-x)
 
 (declare-function magit-init "magit-status")
 (declare-function magit-status-setup-buffer "magit-status")
 
 ;;;; Variables
 
-(defcustom workspaces-workspace-create-permitted-buffer-names '("*scratch*")
-  "List of buffer names kept by `workspaces-create-workspace'."
+(defcustom tabspaces-workspace-create-permitted-buffer-names '("*scratch*")
+  "List of buffer names kept by `tabspaces-create-workspace'."
   :type 'string
-  :group 'workspaces
+  :group 'tabspaces
   :version "27.1")
 
-(defcustom workspaces-use-filtered-buffers-as-default nil
-  "When t, remap `switch-to-buffer' to `workspaces-switch-to-buffer'."
+(defcustom tabspaces-use-filtered-buffers-as-default nil
+  "When t, remap `switch-to-buffer' to `tabspaces-switch-to-buffer'."
   :type 'boolean)
 
 ;;;; Create Buffer Workspace
 
 ;;;###autoload
-(defun workspaces-create-workspace (&optional arg)
+(defun tabspaces-create-workspace (&optional arg)
   "Create a new tab/workspace with cleaned buffer lists.
 
 ARG is directly passed to `tabbar-new-tab'.
-Only buffers in `workspaces--workspace-create-permitted-buffer-names'
+Only buffers in `tabspaces--workspace-create-permitted-buffer-names'
 are kept in the `buffer-list' and `buried-buffer-list'.
 This is similar to `elscreen-create'."
   (interactive)
@@ -89,13 +90,13 @@ This is similar to `elscreen-create'."
                        'buffer-list
                        (seq-filter (lambda (buffer)
                                      (member (buffer-name buffer)
-                                             workspaces-workspace-create-permitted-buffer-names))
+                                             tabspaces-workspace-create-permitted-buffer-names))
                                    (frame-parameter nil 'buffer-list)))
   (set-frame-parameter nil
                        'buried-buffer-list
                        (seq-filter (lambda (buffer)
                                      (member (buffer-name buffer)
-                                             workspaces-workspace-create-permitted-buffer-names))
+                                             tabspaces-workspace-create-permitted-buffer-names))
                                    (frame-parameter nil 'buried-buffer-list))))
 
 ;; NOTE: to clone tab/workspace with all buffers use tab-bar-duplicate-tab
@@ -107,7 +108,7 @@ This is similar to `elscreen-create'."
 ;; See https://github.com/wamei/elscreen-separate-buffer-list/issues/8
 ;; https://github.com/kaz-yos/emacs/blob/master/init.d/200_tab-related.el#L74-L87
 
-(defun workspaces--tab-bar-buffer-name-filter (buffer-names)
+(defun tabspaces--tab-bar-buffer-name-filter (buffer-names)
   "Filter BUFFER-NAMES by the current tab's buffer list.
 It should be used to filter a list of buffer names created by
 other functions, such as `helm-buffer-list'."
@@ -121,27 +122,27 @@ other functions, such as `helm-buffer-list'."
 
 ;;;;; Filtered Switch to Buffer Function
 
-(defun workspaces--buffer-list-all ()
+(defun tabspaces--buffer-list-all ()
   "List all buffers for workspace."
   (cl-loop for b in (buffer-list)
            for bn = (buffer-name b)
            collect bn))
 
-(defun workspaces-switch-to-buffer ()
+(defun tabspaces-switch-to-buffer ()
   "Filter open buffers on a per-workspace basis."
   (interactive)
   (switch-to-buffer
    (completing-read "Switch to workspace buffer: "
-                    (workspaces--tab-bar-buffer-name-filter
-                     (workspaces--buffer-list-all)))))
+                    (tabspaces--tab-bar-buffer-name-filter
+                     (tabspaces--buffer-list-all)))))
 
 ;;;; Project Workspace Helper Functions
 
-(defun workspaces--list-workspaces ()
+(defun tabspaces--list-tabspaces ()
   "Return a list of `tab-bar' tabs/workspaces."
   (mapcar (lambda (tab) (alist-get 'name tab)) (tab-bar-tabs)))
 
-(defun workspaces--project-name ()
+(defun tabspaces--project-name ()
   "Get name for project from vc.
 If not a in project return buffer filename, or `-' if not visiting a file."
   (let ((buf (buffer-file-name)))
@@ -149,18 +150,18 @@ If not a in project return buffer filename, or `-' if not visiting a file."
            (file-name-nondirectory (directory-file-name (vc-root-dir))))
           (t "-"))))
 
-(defun workspaces--name-tab-by-project-or-default ()
+(defun tabspaces--name-tab-by-project-or-default ()
   "Return project name if in a project, or default tab-bar name if not.
 The default tab-bar name uses the buffer name along with a counter."
-  (let ((project-name (workspaces--project-name))
+  (let ((project-name (tabspaces--project-name))
         (tab (tab-bar-tab-name-current)))
     (cond ((string= tab project-name)
            (tab-bar-switch-to-tab tab))
           ((string= "-" project-name)
            (tab-bar-tab-name-current-with-count))
-          (t (workspaces--project-name)))))
+          (t (tabspaces--project-name)))))
 
-(defun workspaces-project-switch-project-open-file (dir)
+(defun tabspaces-project-switch-project-open-file (dir)
   "Switch to another project by running an Emacs command.
 Open file using `project-find-file'. NOTE: this function does *not*
 open or switch to a new workspace. Rather it switches to a new
@@ -176,7 +177,7 @@ to the selected directory DIR."
     (call-interactively #'project-find-file)))
 
 ;;;; New VC Project
-(defun workspaces--create-new-vc-project ()
+(defun tabspaces--create-new-vc-project ()
   "Initialize a new version control repo and add it to project.el's known projects."
   (let ((project-dir (file-name-as-directory (expand-file-name
                                               (read-directory-name "New project root:")))))
@@ -197,7 +198,7 @@ to the selected directory DIR."
 ;;;;; Switch to or Create Workspace
 
 ;;;###autoload
-(defun workspaces-switch-to-or-create-workspace ()
+(defun tabspaces-switch-to-or-create-workspace ()
   "Switch to existing workspace.
 If workspace does not exist, then allow the creation of a
 new,named workspace on the fly."
@@ -207,33 +208,33 @@ new,named workspace on the fly."
     (if (member tab-name tab-names)
         (tab-bar-select-tab-by-name tab-name)
       (progn
-        (workspaces-create-workspace)
+        (tabspaces-create-workspace)
         (tab-bar-new-tab)
         (tab-bar-rename-tab tab-name)))))
 
 ;;;;; Open Project in New Workspace
 
 ;;;###autoload
-(defun workspaces-open-existing-project-and-workspace ()
+(defun tabspaces-open-existing-project-and-workspace ()
   "Open an existing project as its own workspace."
   (interactive)
   (progn
-    (workspaces-create-workspace)
-    (call-interactively #'workspaces-project-switch-project-open-file)
-    (tab-bar-rename-tab (workspaces--name-tab-by-project-or-default))))
+    (tabspaces-create-workspace)
+    (call-interactively #'tabspaces-project-switch-project-open-file)
+    (tab-bar-rename-tab (tabspaces--name-tab-by-project-or-default))))
 
 ;;;;;  Create & Open New Project in New Workspace
 
 ;;;###autoload
-(defun workspaces-create-new-project-and-workspace ()
+(defun tabspaces-create-new-project-and-workspace ()
   "Create & open a new version-controlled project as its own workspace.
 Create a `project-todo.org' file. This will use magit if
 available, otherwise it will use the built-in vc library."
   (interactive)
   (progn
-    (workspaces-create-workspace)
-    (workspaces--name-tab-by-project-or-default)
-    (workspaces--create-new-vc-project)
+    (tabspaces-create-workspace)
+    (tabspaces--name-tab-by-project-or-default)
+    (tabspaces--create-new-vc-project)
     (delete-other-windows)
     (with-temp-buffer (write-file "project-todo.org"))
     (if (featurep 'magit)
@@ -246,7 +247,7 @@ available, otherwise it will use the built-in vc library."
 ;;;;; Switch Workspace
 
 ;; Just a wrapper around tab-bar
-(defun workspaces-switch-workspace ()
+(defun tabspaces-switch-workspace ()
   "Switch workspace via tab-bar."
   (interactive)
   (call-interactively #'tab-bar-switch-to-tab))
@@ -255,15 +256,15 @@ available, otherwise it will use the built-in vc library."
 ;; Some convenience functions for closing workspaces and buffers
 ;; these are just wrappers around built-in functions
 
-(defun workspaces-close-workspace ()
+(defun tabspaces-close-workspace ()
   "Close workspace."
   (interactive)
   (tab-bar-close-tab))
 
-(defun workspaces-kill-buffers-close-workspace ()
+(defun tabspaces-kill-buffers-close-workspace ()
   "Kill all buffers in the workspace and then close the workspace itself."
   (interactive)
-  (let ((buf (workspaces--tab-bar-buffer-name-filter (workspaces--buffer-list-all))))
+  (let ((buf (tabspaces--tab-bar-buffer-name-filter (tabspaces--buffer-list-all))))
     (unwind-protect
         (cl-loop for b in buf
                  do (kill-buffer b))
@@ -271,30 +272,30 @@ available, otherwise it will use the built-in vc library."
 
 ;;;; Define Minor Mode
 ;;;###autoload
-(defvar workspaces-prefix-map
+(defvar tabspaces-prefix-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c C-w c") 'workspaces-create-workspace)
-    (define-key map (kbd "C-c C-w b") 'workspaces-switch-to-buffer)
-    (define-key map (kbd "C-c C-w d") 'workspaces-close-workspace)
-    (define-key map (kbd "C-c C-w k") 'workspaces-kill-buffers-close-workspace)
-    (define-key map (kbd "C-c C-w n") 'workspaces-create-new-project-and-workspace)
-    (define-key map (kbd "C-c C-w o") 'workspaces-open-existing-project-and-workspace)
-    (define-key map (kbd "C-c C-w s") 'workspaces-switch-to-or-create-workspace)
+    (define-key map (kbd "C-c C-w c") 'tabspaces-create-workspace)
+    (define-key map (kbd "C-c C-w b") 'tabspaces-switch-to-buffer)
+    (define-key map (kbd "C-c C-w d") 'tabspaces-close-workspace)
+    (define-key map (kbd "C-c C-w k") 'tabspaces-kill-buffers-close-workspace)
+    (define-key map (kbd "C-c C-w n") 'tabspaces-create-new-project-and-workspace)
+    (define-key map (kbd "C-c C-w o") 'tabspaces-open-existing-project-and-workspace)
+    (define-key map (kbd "C-c C-w s") 'tabspaces-switch-to-or-create-workspace)
     map)
   "Keymap for workspace commands.")
 
 ;;;###autoload
-(define-minor-mode workspaces-mode
+(define-minor-mode tabspaces-mode
   "Create a global minor mode for buffer-isolated workspaces.
 This uses Emacs `tab-bar' and `project.el'."
   :lighter ""
-  :keymap workspaces-prefix-map
+  :keymap tabspaces-prefix-map
   :global t
 
   ;; Option to always use filtered buffers when minor mode is enabled.
-  (when workspaces-use-filtered-buffers-as-default
-    (define-key (current-global-map) [remap switch-to-buffer] #'workspaces-switch-to-buffer)))
+  (when tabspaces-use-filtered-buffers-as-default
+    (define-key (current-global-map) [remap switch-to-buffer] #'tabspaces-switch-to-buffer)))
 
 ;;; Provide
-(provide 'workspaces)
-;;; workspaces.el ends here
+(provide 'tabspaces)
+;;; tabspaces.el ends here
