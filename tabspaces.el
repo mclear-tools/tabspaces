@@ -181,18 +181,15 @@ to the selected directory DIR."
   "Initialize a new version control repo and add it to project.el's known projects."
   (let ((project-dir (file-name-as-directory (expand-file-name
                                               (read-directory-name "New project root:")))))
-    (progn
-      (setq default-directory project-dir)
-      (if (featurep 'magit)
-          (progn
-            (require 'magit)
-            (magit-init project-dir))
-        (progn
-          (mkdir project-dir)
-          (call-interactively #'vc-create-repo)))
-      ;; make sure project.el remembers new project
-      (let ((pr (project--find-in-directory default-directory)))
-        (project-remember-project pr)))))
+    (setq default-directory project-dir)
+    (if (featurep 'magit)
+        (magit-init project-dir)
+      (progn
+        (mkdir project-dir)
+        (call-interactively #'vc-create-repo)))
+    ;; make sure project.el remembers new project
+    (let ((pr (project--find-in-directory default-directory)))
+      (project-remember-project pr))))
 
 ;;;; Interactive Functions
 ;;;;; Switch to or Create Workspace
@@ -218,10 +215,9 @@ new,named workspace on the fly."
 (defun tabspaces-open-existing-project-and-workspace ()
   "Open an existing project as its own workspace."
   (interactive)
-  (progn
-    (tabspaces-create-workspace)
-    (call-interactively #'tabspaces-project-switch-project-open-file)
-    (tab-bar-rename-tab (tabspaces--name-tab-by-project-or-default))))
+  (tabspaces-create-workspace)
+  (call-interactively #'tabspaces-project-switch-project-open-file)
+  (tab-bar-rename-tab (tabspaces--name-tab-by-project-or-default)))
 
 ;;;;;  Create & Open New Project in New Workspace
 
@@ -231,18 +227,15 @@ new,named workspace on the fly."
 Create a `project-todo.org' file. This will use magit if
 available, otherwise it will use the built-in vc library."
   (interactive)
-  (progn
-    (tabspaces-create-workspace)
-    (tabspaces--name-tab-by-project-or-default)
-    (tabspaces--create-new-vc-project)
-    (delete-other-windows)
-    (with-temp-buffer (write-file "project-todo.org"))
-    (if (featurep 'magit)
-        (progn
-          (require 'magit)
-          (magit-status-setup-buffer))
-      (project-vc-dir))
-    (dired-jump-other-window)))
+  (tabspaces-create-workspace)
+  (tabspaces--name-tab-by-project-or-default)
+  (tabspaces--create-new-vc-project)
+  (delete-other-windows)
+  (with-temp-buffer (write-file "project-todo.org"))
+  (if (featurep 'magit)
+      (magit-status-setup-buffer)
+    (project-vc-dir))
+  (dired-jump-other-window))
 
 ;;;;; Switch Workspace
 
