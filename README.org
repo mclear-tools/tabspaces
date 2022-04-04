@@ -36,8 +36,8 @@ up to the user to configure tabs, etc., however they like.
 
 ** Installation
 
-This package is currently in the queue for going on to MELPA. In the meantime
-you need to download it manually and install it in your load-path. 
+You may install this package either from Melpa (=M-x package-install tabspaces
+RET=) or by cloning this repo and adding it to your load-path. 
 
 ** Setup
 
