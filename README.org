@@ -1,5 +1,13 @@
-(*NOTE:* In submitting the package to MELPA I've had to make some breaking changes
-wrt the namespace, etc. So please keep this in mind when pulling changes!)
+#+title: Tabspaces
+#+author: Colin McLear
+#+language: en
+#+export_file_name: tabspaces.texi
+#+texinfo_dir_category: Emacs
+#+texinfo_dir_title: Tabspaces: (tabspaces).
+#+texinfo_dir_desc: Worspaces using tab-bar and project.el 
+
+#+html: <a href="https://www.gnu.org/software/emacs/"><img alt="GNU Emacs" src="https://github.com/minad/corfu/blob/screenshots/emacs.svg?raw=true"/></a>
+#+html: <a href="https://melpa.org/#/tabspaces"><img alt="MELPA" src="https://melpa.org/packages/tabspaces-badge.svg"/></a>
 
 Tabspaces leverages [[https://github.com/emacs-mirror/emacs/blob/master/lisp/tab-bar.el][tab-bar.el]] and [[https://github.com/emacs-mirror/emacs/blob/master/lisp/progmodes/project.el][project.el]] (both built into emacs 27+) to
 create buffer-isolated workspaces (or "tabspaces") that also integrate with your
