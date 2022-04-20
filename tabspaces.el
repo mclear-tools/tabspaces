@@ -122,8 +122,8 @@ other functions."
 
 ;;;;; Filtered Switch to Buffer Function
 
-(defun tabspaces--buffer-list-all ()
-  "List all buffers for workspace."
+(defun tabspaces--list-all-buffers ()
+  "List all open buffers."
   (cl-loop for b in (buffer-list)
            for bn = (buffer-name b)
            collect bn))
@@ -134,7 +134,7 @@ other functions."
   (switch-to-buffer
    (completing-read "Switch to workspace buffer: "
                     (tabspaces--tab-bar-buffer-name-filter
-                     (tabspaces--buffer-list-all)))))
+                     (tabspaces--list-all-buffers)))))
 
 ;;;; Project Workspace Helper Functions
 
@@ -257,7 +257,7 @@ available, otherwise it will use the built-in vc library."
 (defun tabspaces-kill-buffers-close-workspace ()
   "Kill all buffers in the workspace and then close the workspace itself."
   (interactive)
-  (let ((buf (tabspaces--tab-bar-buffer-name-filter (tabspaces--buffer-list-all))))
+  (let ((buf (tabspaces--tab-bar-buffer-name-filter (tabspaces--list-all-buffers))))
     (unwind-protect
         (cl-loop for b in buf
                  do (kill-buffer b))
