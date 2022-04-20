@@ -111,7 +111,7 @@ This is similar to `elscreen-create'."
 (defun tabspaces--tab-bar-buffer-name-filter (buffer-names)
   "Filter BUFFER-NAMES by the current tab's buffer list.
 It should be used to filter a list of buffer names created by
-other functions, such as `helm-buffer-list'."
+other functions."
   (let ((buffer-names-to-keep
          ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Buffer-List.html
          (append (mapcar #'buffer-name (alist-get 'wc-bl (tab-bar--tab)))
