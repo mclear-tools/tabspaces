@@ -62,15 +62,15 @@
   "Manage tab/workspace buffers."
   :group 'convenience)
 
-(defcustom tabspaces-remove-to-default t
-  "Add buffer to default (global) tabspace when removed from current tabspace."
-  :group 'tabspaces
-  :type 'boolean)
-
 (defcustom tabspaces-default-tab "Default"
   "Specify a default tab by name TAB."
   :group 'tabspaces
   :type 'string)
+
+(defcustom tabspaces-remove-to-default t
+  "Add buffer to default tabspace when removed from current tabspace."
+  :group 'tabspaces
+  :type 'boolean)
 
 (defcustom tabspaces-include-buffers '("*scratch*")
   "Buffers that should always get included in a new tab or frame.
@@ -364,11 +364,11 @@ available, otherwise it will use the built-in vc library."
     (define-key map (kbd "C-c C-w R") 'tabspaces-remove-selected-buffer)
     (define-key map (kbd "C-c C-w s") 'tabspaces-switch-to-or-create-workspace)
     map)
-  "Keymap for workspace commands.")
+  "Keymap for tabspace/workspace commands.")
 
 ;;;###autoload
 (define-minor-mode tabspaces-mode
-  "Create a global minor mode for buffer-isolated workspaces.
+  "Create a global minor mode for `tabspaces', or buffer-isolated workspaces.
 This uses Emacs `tab-bar' and `project.el'."
   :lighter ""
   :keymap tabspaces-prefix-map
