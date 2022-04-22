@@ -40,12 +40,9 @@
 ;; - https://github.com/wamei/elscreen-separate-buffer-list/issues/8
 ;; - https://www.rousette.org.uk/archives/using-the-tab-bar-in-emacs/
 ;; - https://github.com/minad/consult#multiple-sources
+;; - https://github.com/florommel/bufferlo
 
 ;;; Code:
-
-(defgroup tabspaces nil
-  "Settings for workspaces."
-  :group 'tabspaces)
 
 ;;;; Requirements
 
