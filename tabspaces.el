@@ -2,7 +2,7 @@
 
 ;; Author: Colin McLear <mclear@fastmail.com>
 ;; Maintainer: Colin McLear
-;; Version: 1.0
+;; Version: 1.1
 ;; Package-Requires: ((emacs "27.1") (project "0.8.1"))
 ;; Keywords: convenience, frames
 ;; Homepage: https://github.com/mclear-tools/tabspaces
