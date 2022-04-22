@@ -170,20 +170,21 @@ The default tab-bar name uses the buffer name along with a counter."
            (tab-bar-tab-name-current-with-count))
           (t (tabspaces--project-name)))))
 
-(defun tabspaces-project-switch-project-open-file (dir)
-  "Switch to another project by running an Emacs command.
-Open file using `project-find-file'. NOTE: this function does *not*
-open or switch to a new workspace. Rather it switches to a new
-project and opens a file via `completing-read'. If you prefer to
-use the project.el command-menu, then use
-`project-switch-project'
-
-When called, this function will use the project corresponding
-to the selected directory DIR."
-  (interactive (list (project-prompt-project-dir)))
-  (let ((default-directory dir)
-        (project-current-inhibit-prompt t))
-    (call-interactively #'project-find-file)))
+(defun tabspaces--add-to-default-tabspace (buffer)
+  "Add BUFFER to default tabspace buffer list."
+  (let ((tab-names (mapcar
+                    (lambda (tab) (alist-get 'name tab))
+                    (funcall tab-bar-tabs-function))))
+    (when (and tabspaces-remove-to-default
+               (member tabspaces-default-tab tab-names))
+      ;; add buffer to default tabspace
+      (tab-bar-select-tab-by-name tabspaces-default-tab)
+      (display-buffer buffer)
+      (switch-to-buffer buffer t nil)
+      (if (one-window-p t)
+          (previous-buffer)
+        (delete-window))
+      (tab-bar-switch-to-recent-tab))))
 
 ;;;; New VC Project
 (defun tabspaces--create-new-vc-project ()
@@ -201,6 +202,85 @@ to the selected directory DIR."
       (project-remember-project pr))))
 
 ;;;; Interactive Functions
+
+;;;;; Open Project & File
+(defun tabspaces-project-switch-project-open-file (dir)
+  "Switch to another project by running an Emacs command.
+Open file using `project-find-file'. NOTE: this function does *not*
+open or switch to a new workspace. Rather it switches to a new
+project and opens a file via `completing-read'. If you prefer to
+use the project.el command-menu, then use
+`project-switch-project'
+
+When called, this function will use the project corresponding
+to the selected directory DIR."
+  (interactive (list (project-prompt-project-dir)))
+  (let ((default-directory dir)
+        (project-current-inhibit-prompt t))
+    (call-interactively #'project-find-file)))
+
+;;;;; Buffer Functions
+
+(defun tabspaces-remove-selected-buffer (buffer)
+  "Remove selected BUFFER from the frame's buffer list.
+If `tabspaces-remove-to-default' is t then add the buffer to the
+default tabspace."
+  (interactive
+   (list
+    (let ((blst (mapcar (lambda (b) (buffer-name b))
+                        (tabspaces-buffer-list))))
+      ;; select buffer
+      (read-buffer "Remove buffer from tabspace: " nil t
+                   (lambda (b) (member (car b) blst))))))
+  ;; delete window of buffer
+  (cond ((eq buffer (window-buffer (selected-window)))
+         (if (one-window-p t)
+             (bury-buffer)
+           (delete-window)))
+        ((get-buffer-window buffer)
+         (select-window (get-buffer-window buffer) t)
+         (if (one-window-p t)
+             (bury-buffer)
+           (delete-window)))
+        (t
+         (message "buffer removed from tabspace")))
+  ;; delete buffer from tabspace buffer list
+  (delete (get-buffer buffer) (frame-parameter nil 'buffer-list))
+  ;; add buffer to default tabspace
+  (tabspaces--add-to-default-tabspace buffer))
+
+(defun tabspaces-remove-current-buffer (&optional buffer-or-name)
+  "Bury and remove current buffer BUFFER-OR-NAME from the tabspace list.
+If `tabspaces-remove-to-default' is t then add the buffer to the
+default tabspace."
+  (interactive)
+  (let ((buffer (or buffer-or-name (current-buffer))))
+    (delete (get-buffer buffer) (frame-parameter nil 'buffer-list))
+    (bury-buffer buffer-or-name)
+    (tabspaces--add-to-default-tabspace buffer)))
+
+(defun tabspaces-switch-to-buffer (buffer &optional norecord force-same-window)
+  "Display the local buffer BUFFER in the selected window.
+This is the frame/tab-local equivilant to `switch-to-buffer'.
+The arguments NORECORD and FORCE-SAME-WINDOW are passed to `switch-to-buffer'."
+  (interactive
+   (list
+    (let ((blst (mapcar #'buffer-name (tabspaces-buffer-list))))
+      (read-buffer
+       "Switch to local buffer: " blst nil
+       (lambda (b) (member (if (stringp b) b (car b)) blst))))))
+  (switch-to-buffer buffer norecord force-same-window))
+
+(defun tabspaces-clear-buffers (&optional frame)
+  "Clear the frame's buffer list, except for the current buffer.
+If FRAME is nil, use the current frame."
+  (interactive)
+  (set-frame-parameter frame 'buffer-list
+                       (list (if frame
+                                 (with-selected-frame frame
+                                   (current-buffer))
+                               (current-buffer)))))
+
 ;;;;; Switch to or Create Workspace
 
 ;;;###autoload
@@ -277,26 +357,36 @@ available, otherwise it will use the built-in vc library."
 (defvar tabspaces-prefix-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-c C-w c") 'tabspaces-create-workspace)
+    (define-key map (kbd "C-c C-w C") 'tabspaces-clear-buffers)
     (define-key map (kbd "C-c C-w b") 'tabspaces-switch-to-buffer)
     (define-key map (kbd "C-c C-w d") 'tabspaces-close-workspace)
     (define-key map (kbd "C-c C-w k") 'tabspaces-kill-buffers-close-workspace)
     (define-key map (kbd "C-c C-w n") 'tabspaces-create-new-project-and-workspace)
     (define-key map (kbd "C-c C-w o") 'tabspaces-open-existing-project-and-workspace)
+    (define-key map (kbd "C-c C-w r") 'tabspaces-remove-current-buffer)
+    (define-key map (kbd "C-c C-w R") 'tabspaces-remove-selected-buffer)
     (define-key map (kbd "C-c C-w s") 'tabspaces-switch-to-or-create-workspace)
     map)
   "Keymap for workspace commands.")
 
 ;;;###autoload
 (define-minor-mode tabspaces-mode
-  "Create a global minor mode for buffer-isolated workspaces.
+"Create a global minor mode for buffer-isolated workspaces.
 This uses Emacs `tab-bar' and `project.el'."
-  :lighter ""
-  :keymap tabspaces-prefix-map
-  :global t
+:lighter ""
+:keymap tabspaces-prefix-map
+:global t
 
-  ;; Option to always use filtered buffers when minor mode is enabled.
-  (when tabspaces-use-filtered-buffers-as-default
-    (define-key (current-global-map) [remap switch-to-buffer] #'tabspaces-switch-to-buffer)))
+;; Option to always use filtered buffers when minor mode is enabled.
+(when tabspaces-use-filtered-buffers-as-default
+  ;; Remap switch-to-buffer
+  (define-key (current-global-map) [remap switch-to-buffer] #'tabspaces-switch-to-buffer)
+  ;; Setup tabspace buffers
+  (dolist (frame (frame-list))
+    (tabspaces--set-buffer-predicate frame))
+  (add-hook 'after-make-frame-functions #'tabspaces--set-buffer-predicate)))
+
+
 
 ;;; Provide
 (provide 'tabspaces)
