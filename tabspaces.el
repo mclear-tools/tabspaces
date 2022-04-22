@@ -371,20 +371,24 @@ available, otherwise it will use the built-in vc library."
 
 ;;;###autoload
 (define-minor-mode tabspaces-mode
-"Create a global minor mode for buffer-isolated workspaces.
+  "Create a global minor mode for buffer-isolated workspaces.
 This uses Emacs `tab-bar' and `project.el'."
-:lighter ""
-:keymap tabspaces-prefix-map
-:global t
-
-;; Option to always use filtered buffers when minor mode is enabled.
-(when tabspaces-use-filtered-buffers-as-default
-  ;; Remap switch-to-buffer
-  (define-key (current-global-map) [remap switch-to-buffer] #'tabspaces-switch-to-buffer)
-  ;; Setup tabspace buffers
-  (dolist (frame (frame-list))
-    (tabspaces--set-buffer-predicate frame))
-  (add-hook 'after-make-frame-functions #'tabspaces--set-buffer-predicate)))
+  :lighter ""
+  :keymap tabspaces-prefix-map
+  :global t
+  (if tabspaces-mode
+      ;; Option to always use filtered buffers when minor mode is enabled.
+      (when tabspaces-use-filtered-buffers-as-default
+        ;; Remap switch-to-buffer
+        (define-key (current-global-map) [remap switch-to-buffer] #'tabspaces-switch-to-buffer)
+        ;; Setup tabspace buffers
+        (dolist (frame (frame-list))
+          (tabspaces--set-buffer-predicate frame))
+        (add-hook 'after-make-frame-functions #'tabspaces--set-buffer-predicate))
+    ;; Prefer local buffers
+    (dolist (frame (frame-list))
+      (tabspaces--reset-buffer-predicate frame))
+    (remove-hook 'after-make-frame-functions #'tabspaces--set-buffer-predicate)))
 
 
 
