@@ -27,11 +27,13 @@ workspace using =tab.el= in the background. Using =tabspaces-switch-buffer= (for
 =consult= integration see below) will only show buffers in the workspace (but
 list-buffers, ibuffer, etc. will show all buffers). Adding buffers to a
 workspace is as simple as opening the buffer in the workspace. Delete buffers
-from a workspace by killing them (there is no other way currently to remove
-them). Switch or create workspaces via =tabspaces-switch-to-or-create-workspace=
-(or =tab-bar-switch-tab=). You can close a workspace by invoking
-=tabspaces-close-workspace= or =tab-bar-close-tab=. You can close a workspace and
-kill all buffers associated with it using
+from a workspace either by killing them or using one of either
+=tabspaces-remove-selected-buffer= or =tabspaces-remove-current-buffer=. Removed
+buffers are still available from the default tabspace. Control this with the
+variable =tabspaces-remove-to-default=. Switch or create workspaces via
+=tabspaces-switch-to-or-create-workspace= (or =tab-bar-switch-tab=). You can close a
+workspace by invoking =tabspaces-close-workspace= or =tab-bar-close-tab=. You can
+close a workspace and kill all buffers associated with it using
 =tabspaces-kill-buffers-close-workspace=.
 
 You may also open an existing version-controlled project in its own workspace
@@ -61,30 +63,37 @@ Here's one possible way of setting up the package using [[https://github.com/jwi
              tabspaces-create-new-project-and-workspace
              tabspaces-open-existing-project-and-workspace
              tabspaces-switch-workspace)
-  :custom (tabspaces-use-filtered-buffers-as-default t))
+  :custom
+  (tabspaces-use-filtered-buffers-as-default t)
+  (tabspaces-default-tab "Default")
+  (tabspaces-remove-to-default t)
+  (tabspaces-include-buffers '("*scratch*")))
 #+end_src
 
 *** Keybindings 
 Workspace Keybindings are defined in the following variable:
 
 #+begin_src emacs-lisp
-  (defvar tabspaces-prefix-map
+(defvar tabspaces-prefix-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-c C-w c") 'tabspaces-create-workspace)
+    (define-key map (kbd "C-c C-w C") 'tabspaces-clear-buffers)
     (define-key map (kbd "C-c C-w b") 'tabspaces-switch-to-buffer)
     (define-key map (kbd "C-c C-w d") 'tabspaces-close-workspace)
     (define-key map (kbd "C-c C-w k") 'tabspaces-kill-buffers-close-workspace)
     (define-key map (kbd "C-c C-w n") 'tabspaces-create-new-project-and-workspace)
     (define-key map (kbd "C-c C-w o") 'tabspaces-open-existing-project-and-workspace)
+    (define-key map (kbd "C-c C-w r") 'tabspaces-remove-current-buffer)
+    (define-key map (kbd "C-c C-w R") 'tabspaces-remove-selected-buffer)
     (define-key map (kbd "C-c C-w s") 'tabspaces-switch-to-or-create-workspace)
     map)
-  "Keymap for tabspaces/workspace commands.")
+  "Keymap for tabspace/workspace commands.")
 #+end_src
 
 *** Buffer Filtering
 
 When =tabspaces-mode= is enabled use =tabspaces-switch-to-buffer= to choose from a
-filtered list of only those buffers in the current workspace. Though nil by
+filtered list of only those buffers in the current tab/workspace. Though nil by
 default, when =tabspaces-use-filtered-buffers-as-default= is set to 't' and
 =tabspaces-mode= is enabled, =switch-to-buffer= is globally remapped to
 =tabspaces-switch-to-buffer=, and thus only shows those buffers in the current
@@ -101,21 +110,23 @@ config to have workspace buffers in =consult-buffer=:
   ;; Filter Buffers for Consult-Buffer
 
   (with-eval-after-load 'consult
-    ;; hide full buffer list (still available with "b")
-    (consult-customize consult--source-buffer :hidden t :default nil)
-    ;; set consult-workspace buffer list
-    (defvar consult--source-workspace
-      (list :name     "Workspace Buffers"
-            :narrow   ?w
-            :category 'buffer
-            :state    #'consult--buffer-state
-            :default  t
-            :items    (lambda ()
-                        (tabspaces--tab-bar-buffer-name-filter ((lambda () (consult--buffer-query :sort 'visibility
-                                                                                                    :as #'buffer-name))))))
+  ;; hide full buffer list (still available with "b" prefix)
+  (consult-customize consult--source-buffer :hidden t :default nil)
+  ;; set consult-workspace buffer list
+  (defvar consult--source-workspace
+    (list :name     "Workspace Buffers"
+          :narrow   ?w
+          :history  'buffer-name-history
+          :category 'buffer
+          :state    #'consult--buffer-state
+          :default  t
+          :items    (lambda () (consult--buffer-query
+                           :predicate #'tabspaces-local-buffer-p
+                           :sort 'visibility
+                           :as #'buffer-name)))
 
-      "Set workspace buffer list for consult-buffer.")
-    (push consult--source-workspace consult-buffer-sources))
+    "Set workspace buffer list for consult-buffer.")
+  (push consult--source-workspace consult-buffer-sources))
 #+end_src
 
 This should seamlessly integrate workspace buffers into =consult-buffer=,
@@ -126,18 +137,17 @@ narrowing with "p" in [[https://github.com/minad/consult#configuration][a defaul
 **** Included Buffers
 
 By default the =*scratch*= buffer is included in all workspaces. You can modify
-which buffers are included by changing the value of
-=tabspaces-workspace-create-permitted-buffer-names=.
+which buffers are included by changing the value of =tabspaces-include-buffers=.
 
 If you want emacs to startup with initial buffers in a workspace (something I
 find works well) you could do something like the following:
 
 #+begin_src emacs-lisp
   (defun my--tabspace-setup ()
-    "Set up workspace at startup."
+    "Set up tabspace at startup."
     ;; Add *Messages* and *splash* to Tab \`Home\'
+    (tabspaces-mode 1)
     (progn
-      (workspaces-create-workspace)
       (tab-bar-rename-tab "Home")
       (when (get-buffer "*Messages*")
         (set-frame-parameter nil
@@ -163,5 +173,7 @@ variety of sources. These include:
    + https://www.rousette.org.uk/archives/using-the-tab-bar-in-emacs/
    + https://github.com/wamei/elscreen-separate-buffer-list/issues/8
    + https://github.com/kaz-yos/emacs
+- Buffer filtering and removal
+   + https://github.com/florommel/bufferlo
 - Consult integration
    + https://github.com/minad/consult#multiple-sources
