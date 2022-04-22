@@ -61,11 +61,26 @@
 
 ;;;; Variables
 
-(defcustom tabspaces-workspace-create-permitted-buffer-names '("*scratch*")
-  "List of buffer names kept by `tabspaces-create-workspace'."
-  :type 'string
+(defgroup tabspaces nil
+  "Manage tab/workspace buffers."
+  :group 'convenience)
+
+(defcustom tabspaces-remove-to-default t
+  "Add buffer to default (global) tabspace when removed from current tabspace."
   :group 'tabspaces
-  :version "27.1")
+  :type 'boolean)
+
+(defcustom tabspaces-default-tab "Default"
+  "Specify a default tab by name TAB."
+  :group 'tabspaces
+  :type 'string)
+
+(defcustom tabspaces-include-buffers '("*scratch*")
+  "Buffers that should always get included in a new tab or frame.
+This is a list of regular expressions that match buffer names.
+This overrides buffers excluded by `tabspaces-exclude-buffers.'"
+  :type '(repeat string)
+  :group 'tabspaces)
 
 (defcustom tabspaces-use-filtered-buffers-as-default nil
   "When t, remap `switch-to-buffer' to `tabspaces-switch-to-buffer'."
@@ -77,10 +92,9 @@
 (defun tabspaces-create-workspace (&optional arg)
   "Create a new tab/workspace with cleaned buffer lists.
 
-ARG is directly passed to `tabbar-new-tab'.
-Only buffers in `tabspaces--workspace-create-permitted-buffer-names'
-are kept in the `buffer-list' and `buried-buffer-list'.
-This is similar to `elscreen-create'."
+ARG is directly passed to `tab-bar-new-tab'. Only buffers in
+`tabspaces-include-buffers' are kept in the `buffer-list' and
+`buried-buffer-list'."
   (interactive)
   (tab-bar-new-tab arg)
   ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Current-Buffer.html
@@ -90,51 +104,46 @@ This is similar to `elscreen-create'."
                        'buffer-list
                        (seq-filter (lambda (buffer)
                                      (member (buffer-name buffer)
-                                             tabspaces-workspace-create-permitted-buffer-names))
+                                             tabspaces-include-buffers))
                                    (frame-parameter nil 'buffer-list)))
   (set-frame-parameter nil
                        'buried-buffer-list
                        (seq-filter (lambda (buffer)
                                      (member (buffer-name buffer)
-                                             tabspaces-workspace-create-permitted-buffer-names))
+                                             tabspaces-include-buffers))
                                    (frame-parameter nil 'buried-buffer-list))))
-
-;; NOTE: to clone tab/workspace with all buffers use tab-bar-duplicate-tab
 
 ;;;; Filter Workspace Buffers
 
-;;;;; Filter Buffers By Tab
-;; tab-bar version of separate buffer list filter
-;; See https://github.com/wamei/elscreen-separate-buffer-list/issues/8
-;; https://github.com/kaz-yos/emacs/blob/master/init.d/200_tab-related.el#L74-L87
+(defun tabspaces-local-buffer-p (buffer)
+  "Return whether BUFFER is in the list of local buffers."
+  (memq buffer (frame-parameter nil 'buffer-list)))
 
-(defun tabspaces--tab-bar-buffer-name-filter (buffer-names)
-  "Filter BUFFER-NAMES by the current tab's buffer list.
-It should be used to filter a list of buffer names created by
-other functions."
-  (let ((buffer-names-to-keep
-         ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Buffer-List.html
-         (append (mapcar #'buffer-name (alist-get 'wc-bl (tab-bar--tab)))
-                 (mapcar #'buffer-name (alist-get 'wc-bbl (tab-bar--tab))))))
-    (seq-filter (lambda (elt)
-                  (member elt buffer-names-to-keep))
-                buffer-names)))
+(defun tabspaces--set-buffer-predicate (frame)
+  "Set the buffer predicate of FRAME to `tabspaces-local-buffer-p'."
+  (set-frame-parameter frame 'buffer-predicate #'tabspaces-local-buffer-p))
 
-;;;;; Filtered Switch to Buffer Function
+(defun tabspaces--reset-buffer-predicate (frame)
+  "Reset the buffer predicate of FRAME if it is `tabspaces-local-buffer-p'."
+  (when (eq (frame-parameter frame 'buffer-predicate) #'tabspaces-local-buffer-p)
+    (set-frame-parameter frame 'buffer-predicate nil)))
 
-(defun tabspaces--list-all-buffers ()
-  "List all open buffers."
-  (cl-loop for b in (buffer-list)
-           for bn = (buffer-name b)
-           collect bn))
-
-(defun tabspaces-switch-to-buffer ()
-  "Filter open buffers on a per-workspace basis."
-  (interactive)
-  (switch-to-buffer
-   (completing-read "Switch to workspace buffer: "
-                    (tabspaces--tab-bar-buffer-name-filter
-                     (tabspaces--list-all-buffers)))))
+(defun tabspaces-buffer-list (&optional frame tabnum)
+  "Return a list of all live buffers associated with the current frame and tab.
+A non-nil value of FRAME selects a specific frame instead of the
+current one. If TABNUM is nil, the current tab is used. If it is
+non-nil, then specify a tab index in the given frame."
+  (let ((list
+         (if tabnum
+             (let ((tab (nth tabnum (frame-parameter frame 'tabs))))
+               (if (eq 'current-tab (car tab))
+                   (frame-parameter frame 'buffer-list)
+                 (or
+                  (cdr (assq 'wc-bl tab))
+                  (mapcar 'get-buffer
+                          (car (cdr (assq #'tabspaces-buffer-list (assq 'ws tab))))))))
+           (frame-parameter frame 'buffer-list))))
+    (seq-filter #'buffer-live-p list)))
 
 ;;;; Project Workspace Helper Functions
 
@@ -257,7 +266,7 @@ available, otherwise it will use the built-in vc library."
 (defun tabspaces-kill-buffers-close-workspace ()
   "Kill all buffers in the workspace and then close the workspace itself."
   (interactive)
-  (let ((buf (tabspaces--tab-bar-buffer-name-filter (tabspaces--list-all-buffers))))
+  (let ((buf (tabspaces-buffer-list)))
     (unwind-protect
         (cl-loop for b in buf
                  do (kill-buffer b))
