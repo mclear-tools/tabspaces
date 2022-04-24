@@ -269,7 +269,7 @@ The arguments NORECORD and FORCE-SAME-WINDOW are passed to `switch-to-buffer'."
   (switch-to-buffer buffer norecord force-same-window))
 
 (defun tabspaces-clear-buffers (&optional frame)
-  "Clear the frame's buffer list, except for the current buffer.
+  "Clear the tabspace's buffer list, except for the current buffer.
 If FRAME is nil, use the current frame."
   (interactive)
   (set-frame-parameter frame 'buffer-list
