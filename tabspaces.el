@@ -281,18 +281,17 @@ If FRAME is nil, use the current frame."
 ;;;;; Switch to or Create Workspace
 
 ;;;###autoload
-(defun tabspaces-switch-to-or-create-workspace ()
-  "Switch to existing workspace.
-If workspace does not exist, then allow the creation of a
-new,named workspace on the fly."
+(defun tabspaces-switch-to-or-create-workspace (&optional tab-name)
+  "Switch to existing workspace named TAB-NAME.
+If TAB-NAME is nil, prompt for one. If TAB-NAME does not exist,
+then create a new workspace with that name."
   (interactive)
   (let* ((tab-names (mapcar (lambda (tab) (alist-get 'name tab)) (funcall tab-bar-tabs-function)))
-         (tab-name (completing-read "Switch to Workspace: " tab-names)))
+         (tab-name (or tab-name (completing-read "Switch to Workspace: " tab-names))))
     (if (member tab-name tab-names)
         (tab-bar-select-tab-by-name tab-name)
-      (progn
-        (tabspaces-create-workspace)
-        (tab-bar-rename-tab tab-name)))))
+      (tabspaces-create-workspace)
+      (tab-bar-rename-tab tab-name))))
 
 ;;;;; Open Project in New Workspace
 
