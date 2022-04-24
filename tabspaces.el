@@ -292,7 +292,6 @@ new,named workspace on the fly."
         (tab-bar-select-tab-by-name tab-name)
       (progn
         (tabspaces-create-workspace)
-        (tab-bar-new-tab)
         (tab-bar-rename-tab tab-name)))))
 
 ;;;;; Open Project in New Workspace
