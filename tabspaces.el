@@ -98,7 +98,7 @@ ARG is directly passed to `tab-bar-new-tab'. Only buffers in
 
 (defun tabspaces-reset-buffer-list ()
   "Resets the current tab's `buffer-list'.
-Only the current buffer and buffers in
+Only the current window buffers and buffers in
 `tabspaces-include-buffers' are kept in the `buffer-list' and
 `buried-buffer-list'."
   (interactive)
@@ -107,11 +107,12 @@ Only the current buffer and buffers in
   ;; A hidden tab keeps these as `wc-bl' and `wc-bbl'.
   (set-frame-parameter nil
                        'buffer-list
-                       (seq-filter (lambda (buffer)
-                                     (or (eq buffer (current-buffer))
-                                         (member (buffer-name buffer)
-                                                 tabspaces-include-buffers)))
-                                   (frame-parameter nil 'buffer-list)))
+                       (let ((window-buffers (mapcar #'window-buffer (window-list))))
+                         (seq-filter (lambda (buffer)
+                                       (or (member buffer window-buffers)
+                                           (member (buffer-name buffer)
+                                                   tabspaces-include-buffers)))
+                                     (frame-parameter nil 'buffer-list))))
   (set-frame-parameter nil
                        'buried-buffer-list
                        (seq-filter (lambda (buffer)
