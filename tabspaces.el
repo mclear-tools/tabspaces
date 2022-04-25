@@ -100,8 +100,9 @@ ARG is directly passed to `tab-bar-new-tab'. Only buffers in
   (set-frame-parameter nil
                        'buffer-list
                        (seq-filter (lambda (buffer)
-                                     (member (buffer-name buffer)
-                                             tabspaces-include-buffers))
+                                     (or (eq buffer (current-buffer))
+                                         (member (buffer-name buffer)
+                                                 tabspaces-include-buffers)))
                                    (frame-parameter nil 'buffer-list)))
   (set-frame-parameter nil
                        'buried-buffer-list
