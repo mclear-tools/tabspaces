@@ -212,9 +212,8 @@ use the project.el command-menu, then use
 When called, this function will use the project corresponding
 to the selected directory DIR."
   (interactive (list (project-prompt-project-dir)))
-  (let ((default-directory dir)
-        (project-current-inhibit-prompt t))
-    (call-interactively #'project-find-file)))
+  (let ((project-switch-commands #'project-find-file))
+      (project-switch-project dir)))
 
 ;;;;; Buffer Functions
 
