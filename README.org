@@ -126,7 +126,7 @@ config to have workspace buffers in =consult-buffer=:
                            :as #'buffer-name)))
 
     "Set workspace buffer list for consult-buffer.")
-  (push consult--source-workspace consult-buffer-sources))
+  (add-to-list 'consult-buffer-sources 'consult--source-workspace))
 #+end_src
 
 This should seamlessly integrate workspace buffers into =consult-buffer=,
