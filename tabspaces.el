@@ -94,6 +94,14 @@ ARG is directly passed to `tab-bar-new-tab'. Only buffers in
 `buried-buffer-list'."
   (interactive)
   (tab-bar-new-tab arg)
+  (tabspaces-reset-buffer-list))
+
+(defun tabspaces-reset-buffer-list ()
+  "Resets the current tab's `buffer-list'.
+Only the current buffer and buffers in
+`tabspaces-include-buffers' are kept in the `buffer-list' and
+`buried-buffer-list'."
+  (interactive)
   ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Current-Buffer.html
   ;; The current-tab uses `buffer-list' and `buried-buffer-list'.
   ;; A hidden tab keeps these as `wc-bl' and `wc-bbl'.
