@@ -298,8 +298,9 @@ then create a new workspace with that name."
 (defun tabspaces-open-existing-project-and-workspace ()
   "Open an existing project as its own workspace."
   (interactive)
-  (tabspaces-create-workspace)
-  (call-interactively #'tabspaces-project-switch-project-open-file)
+  (let ((tab-bar-new-tab-choice
+         (lambda () (call-interactively #'tabspaces-project-switch-project-open-file))))
+    (tabspaces-create-workspace))
   (tab-bar-rename-tab (tabspaces--name-tab-by-project-or-default)))
 
 ;;;;;  Create & Open New Project in New Workspace
