@@ -20,6 +20,9 @@ entirely based on the built-in (to emacs 27+) tab-bar and project packages. If
 you like simple, this may be the workspace package for you. That said, bufler,
 perspective or persp-mode, etc. may better fit your needs.
 
+*NOTE*: version 1.2 renames several functions and streamlines tab and project
+creation. Apologies if this breaks your workflow. Please update your configuration accordingly. 
+
 ** Basic Usage
 
 Calling the minor-mode =tabspaces-mode= sets up newly created tabs as
