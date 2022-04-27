@@ -85,19 +85,8 @@ This overrides buffers excluded by `tabspaces-exclude-buffers.'"
 
 ;;;; Create Buffer Workspace
 
-;;;###autoload
-(defun tabspaces-create-workspace (&optional arg)
-  "Create a new tab/workspace with cleaned buffer lists.
-
-ARG is directly passed to `tab-bar-new-tab'. Only buffers in
-`tabspaces-include-buffers' are kept in the `buffer-list' and
-`buried-buffer-list'."
-  (interactive)
-  (tab-bar-new-tab arg)
-  (tabspaces-reset-buffer-list))
-
 (defun tabspaces-reset-buffer-list ()
-  "Resets the current tab's `buffer-list'.
+  "Reset the current tab's `buffer-list'.
 Only the current window buffers and buffers in
 `tabspaces-include-buffers' are kept in the `buffer-list' and
 `buried-buffer-list'."
@@ -119,6 +108,10 @@ Only the current window buffers and buffers in
                                      (member (buffer-name buffer)
                                              tabspaces-include-buffers))
                                    (frame-parameter nil 'buried-buffer-list))))
+
+(defun tabspaces--tab-post-open-function (_tab)
+  "Reset buffer list on new tab creation."
+  (tabspaces-reset-buffer-list))
 
 ;;;; Filter Workspace Buffers
 
@@ -287,67 +280,16 @@ If FRAME is nil, use the current frame."
                                    (current-buffer))
                                (current-buffer)))))
 
-;;;;; Switch to or Create Workspace
-
+;;;;; Switch or Create Workspace
+;; Some convenience functions for opening/closing workspaces and buffers.
+;; Some of these are just wrappers around built-in functions.
 ;;;###autoload
-(defun tabspaces-switch-to-or-create-workspace (&optional tab-name)
-  "Switch to existing workspace named TAB-NAME.
-If TAB-NAME is nil, prompt for one. If TAB-NAME does not exist,
-then create a new workspace with that name."
-  (interactive)
-  (let* ((tab-names (mapcar (lambda (tab) (alist-get 'name tab)) (funcall tab-bar-tabs-function)))
-         (tab-name (or tab-name (completing-read "Switch to Workspace: " tab-names))))
-    (if (member tab-name tab-names)
-        (tab-bar-select-tab-by-name tab-name)
-      (tabspaces-create-workspace)
-      (tab-bar-rename-tab tab-name))))
-
-;;;;; Open Project in New Workspace
-
-;;;###autoload
-(defun tabspaces-open-existing-project-and-workspace ()
-  "Open an existing project as its own workspace."
-  (interactive)
-  (let ((tab-bar-new-tab-choice
-         (lambda () (call-interactively #'tabspaces-project-switch-project-open-file))))
-    (tabspaces-create-workspace))
-  (tab-bar-rename-tab (tabspaces--name-tab-by-project-or-default)))
-
-;;;;;  Create & Open New Project in New Workspace
-
-;;;###autoload
-(defun tabspaces-create-new-project-and-workspace ()
-  "Create & open a new version-controlled project as its own workspace.
-Create a `project-todo.org' file. This will use magit if
-available, otherwise it will use the built-in vc library."
-  (interactive)
-  (tabspaces-create-workspace)
-  (tabspaces--name-tab-by-project-or-default)
-  (tabspaces--create-new-vc-project)
-  (delete-other-windows)
-  (with-temp-buffer (write-file "project-todo.org"))
-  (if (featurep 'magit)
-      (magit-status-setup-buffer)
-    (project-vc-dir))
-  (dired-jump-other-window))
-
-;;;;; Switch Workspace
-
-;; Just a wrapper around tab-bar
-(defun tabspaces-switch-workspace ()
-  "Switch workspace via tab-bar."
-  (interactive)
-  (call-interactively #'tab-bar-switch-to-tab))
+(defalias 'tabspaces-switch-or-create-workspace #'tab-bar-switch-to-tab)
 
 ;;;;; Close Workspace
-;; Some convenience functions for closing workspaces and buffers
-;; these are just wrappers around built-in functions
+(defalias 'tabspaces-close-workspace #'tab-bar-close-tab)
 
-(defun tabspaces-close-workspace ()
-  "Close workspace."
-  (interactive)
-  (tab-bar-close-tab))
-
+;;;;; Close Workspace & Kill Buffers
 (defun tabspaces-kill-buffers-close-workspace ()
   "Kill all buffers in the workspace and then close the workspace itself."
   (interactive)
@@ -381,21 +323,23 @@ This uses Emacs `tab-bar' and `project.el'."
   :lighter ""
   :keymap tabspaces-prefix-map
   :global t
-  (if tabspaces-mode
-      ;; Option to always use filtered buffers when minor mode is enabled.
-      (when tabspaces-use-filtered-buffers-as-default
-        ;; Remap switch-to-buffer
-        (define-key (current-global-map) [remap switch-to-buffer] #'tabspaces-switch-to-buffer)
-        ;; Setup tabspace buffers
-        (dolist (frame (frame-list))
-          (tabspaces--set-buffer-predicate frame))
-        (add-hook 'after-make-frame-functions #'tabspaces--set-buffer-predicate))
-    ;; Prefer local buffers
-    (dolist (frame (frame-list))
-      (tabspaces--reset-buffer-predicate frame))
-    (remove-hook 'after-make-frame-functions #'tabspaces--set-buffer-predicate)))
-
-
+  (cond (tabspaces-mode
+         ;; Set up tabspace isolated buffers
+         (dolist (frame (frame-list))
+           (tabspaces--set-buffer-predicate frame)
+           (add-hook 'after-make-frame-functions #'tabspaces--set-buffer-predicate)
+           (add-to-list 'tab-bar-tab-post-open-functions #'tabspaces--tab-post-open-function)
+           ;; Option to always use filtered buffers when minor mode is enabled.
+           (when tabspaces-use-filtered-buffers-as-default
+             ;; Remap switch-to-buffer
+             (define-key (current-global-map) [remap switch-to-buffer] #'tabspaces-switch-to-buffer))))
+        (t
+         ;; Remove all modifications
+         (dolist (frame (frame-list))
+           (tabspaces--reset-buffer-predicate frame))
+         (define-key (current-global-map) [remap switch-to-buffer] nil)
+         (setq tab-bar-tab-post-open-functions (remove #'tabspaces--tab-post-open-function tab-bar-tab-post-open-functions))
+         (remove-hook 'after-make-frame-functions #'tabspaces--set-buffer-predicate))))
 
 ;;; Provide
 (provide 'tabspaces)
