@@ -34,6 +34,7 @@
 
 ;; This file is not part of GNU Emacs.
 
+;;; Acknowledgements
 ;; Much of the package code is inspired by:
 
 ;; - https://github.com/kaz-yos/emacs
@@ -153,7 +154,7 @@ non-nil, then specify a tab index in the given frame."
 
 (defun tabspaces--project-name ()
   "Get name for project from vc.
-If not a in project return buffer filename, or `-' if not visiting a file."
+If not in a project return buffer filename, or `-' if not visiting a file."
   (let ((buf (buffer-file-name)))
     (cond ((and buf (vc-registered buf))
            (file-name-nondirectory (directory-file-name (vc-root-dir))))
@@ -186,21 +187,6 @@ The default tab-bar name uses the buffer name along with a counter."
         (delete-window))
       (tab-bar-switch-to-recent-tab))))
 
-;;;; New VC Project
-(defun tabspaces--create-new-vc-project ()
-  "Initialize a new version control repo and add it to project.el's known projects."
-  (let ((project-dir (file-name-as-directory (expand-file-name
-                                              (read-directory-name "New project root:")))))
-    (setq default-directory project-dir)
-    (if (featurep 'magit)
-        (magit-init project-dir)
-      (progn
-        (mkdir project-dir)
-        (call-interactively #'vc-create-repo)))
-    ;; make sure project.el remembers new project
-    (let ((pr (project--find-in-directory default-directory)))
-      (project-remember-project pr))))
-
 ;;;; Interactive Functions
 
 ;;;;; Open Project & File
@@ -216,7 +202,7 @@ When called, this function will use the project corresponding
 to the selected directory DIR."
   (interactive (list (project-prompt-project-dir)))
   (let ((project-switch-commands #'project-find-file))
-      (project-switch-project dir)))
+    (project-switch-project dir)))
 
 ;;;;; Buffer Functions
 
@@ -299,20 +285,50 @@ If FRAME is nil, use the current frame."
                  do (kill-buffer b))
       (tab-bar-close-tab))))
 
+;;;;; Open or Create Project in Workspace
+;;;###autoload
+(defun tabspaces-open-or-create-project-and-workspace (project)
+  "Open PROJECT from `project--list' in its own workspace.
+If PROJECT does not exist, create it, along with a `project.todo' file."
+  (interactive
+   (list
+    (completing-read "Project Name: " project--list)))
+  (cond ((member (list project) project--list)
+         (tab-bar-new-tab)
+         (let ((project-switch-commands #'project-find-file))
+           (project-switch-project project))
+         (tab-bar-rename-tab (tabspaces--name-tab-by-project-or-default)))
+        (t
+         (tab-bar-new-tab)
+         (setq default-directory project)
+         (ignore-errors (mkdir project t))
+         (if (featurep 'magit)
+             (magit-init project)
+           (progn
+             (call-interactively #'vc-create-repo)))
+         (delete-other-windows)
+         (with-temp-buffer (write-file "project-todo.org"))
+         (if (featurep 'magit)
+             (magit-status-setup-buffer)
+           (project-vc-dir))
+         (dired-jump-other-window)
+         (tab-bar-rename-tab (file-name-nondirectory (directory-file-name (vc-root-dir))))
+         ;; make sure project.el remembers new project
+         (let ((pr (project--find-in-directory default-directory)))
+           (project-remember-project pr)))))
+
 ;;;; Define Minor Mode
 ;;;###autoload
 (defvar tabspaces-prefix-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c C-w c") 'tabspaces-create-workspace)
     (define-key map (kbd "C-c C-w C") 'tabspaces-clear-buffers)
     (define-key map (kbd "C-c C-w b") 'tabspaces-switch-to-buffer)
     (define-key map (kbd "C-c C-w d") 'tabspaces-close-workspace)
     (define-key map (kbd "C-c C-w k") 'tabspaces-kill-buffers-close-workspace)
-    (define-key map (kbd "C-c C-w n") 'tabspaces-create-new-project-and-workspace)
-    (define-key map (kbd "C-c C-w o") 'tabspaces-open-existing-project-and-workspace)
+    (define-key map (kbd "C-c C-w o") 'tabspaces-open-or-create-project-and-workspace)
     (define-key map (kbd "C-c C-w r") 'tabspaces-remove-current-buffer)
     (define-key map (kbd "C-c C-w R") 'tabspaces-remove-selected-buffer)
-    (define-key map (kbd "C-c C-w s") 'tabspaces-switch-to-or-create-workspace)
+    (define-key map (kbd "C-c C-w s") 'tabspaces-switch-or-create-workspace)
     map)
   "Keymap for tabspace/workspace commands.")
 
