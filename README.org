@@ -22,27 +22,36 @@ perspective or persp-mode, etc. may better fit your needs.
 
 ** Basic Usage
 
-Calling the function =tabspaces-create-workspace= generates a new buffer-isolated
-workspace using =tab.el= in the background. Using =tabspaces-switch-buffer= (for
-=consult= integration see below) will only show buffers in the workspace (but
-list-buffers, ibuffer, etc. will show all buffers). Adding buffers to a
-workspace is as simple as opening the buffer in the workspace. Delete buffers
-from a workspace either by killing them or using one of either
-=tabspaces-remove-selected-buffer= or =tabspaces-remove-current-buffer=. Removed
-buffers are still available from the default tabspace. Control this with the
-variable =tabspaces-remove-to-default=. Switch or create workspaces via
-=tabspaces-switch-to-or-create-workspace= (or =tab-bar-switch-tab=). You can close a
-workspace by invoking =tabspaces-close-workspace= or =tab-bar-close-tab=. You can
-close a workspace and kill all buffers associated with it using
+Calling the minor-mode =tabspaces-mode= sets up newly created tabs as
+buffer-isolated workspaces using =tab.el= in the background. Calling
+=tabspaces-mode= does not itself create a new tabbed workspace. 
+
+Switch or create workspace via =tabspaces-switch-or-create-workspace=. Close a
+workspace by invoking =tabspaces-close-workspace=. Note that these two functions
+are simply wrappers around native =tab-bar= commands. You can close a workspace
+and /kill/ all buffers associated with it using
 =tabspaces-kill-buffers-close-workspace=.
 
-You may also open an existing version-controlled project in its own workspace
-using =tabspaces-open-existing-project-and-workspace=, and create projects
-in their own workspace using =tabspaces-create-new-project-and-workspace=. 
+Open an existing version-controlled project in its own workspace using
+=tabspaces-open-or-create-project-and-workspace=. If no such project exists it
+will then create one in its own workspace for you.
 
-*NOTE* that this package does not modify =tab-bar=, =tab-line=, or =project= in any way.
-It simply adds convenience functions for use with those packages. So it is still
-up to the user to configure tabs, etc., however they like.  
+See workspace buffers using =tabspaces-switch-buffer= (for =consult= integration see
+below), which will only show buffers in the workspace (but list-buffers,
+ibuffer, etc. will show all buffers). Setting
+=tabspaces-use-filtered-buffers-as-default= to =t= remaps =switch-to-buffer= to
+=tabspaces-switch-to-buffer=.
+
+Adding buffers to a workspace is as simple as opening the buffer in
+the workspace. Delete buffers from a workspace either by killing them or using
+one of either =tabspaces-remove-selected-buffer= or
+=tabspaces-remove-current-buffer=. Removed buffers are still available from the
+default tabspace unless the variable =tabspaces-remove-to-default= is set to =nil=.
+
+*NOTE* that other than tabbed buffer isolation for all created window tabs this
+package does not modify =tab-bar=, =tab-line=, or =project= in any way. It simply adds
+convenience functions for use with those packages. So it is still up to the user
+to configure tabs, etc., however they like.
 
 ** Installation
 
@@ -59,10 +68,9 @@ Here's one possible way of setting up the package using [[https://github.com/jwi
   ;; use this next line only if you also use straight, otherwise ignore it. 
   :straight (:type git :host github :repo "mclear-tools/tabspaces")
   :hook (after-init . tabspaces-mode) ;; use this only if you want the minor-mode loaded at startup. 
-  :commands (tabspaces-create-workspace
+  :commands (tabspaces-switch-to-or-create-workspace
              tabspaces-create-new-project-and-workspace
-             tabspaces-open-existing-project-and-workspace
-             tabspaces-switch-workspace)
+             tabspaces-open-existing-project-and-workspace)
   :custom
   (tabspaces-use-filtered-buffers-as-default t)
   (tabspaces-default-tab "Default")
@@ -76,7 +84,6 @@ Workspace Keybindings are defined in the following variable:
 #+begin_src emacs-lisp
 (defvar tabspaces-prefix-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c C-w c") 'tabspaces-create-workspace)
     (define-key map (kbd "C-c C-w C") 'tabspaces-clear-buffers)
     (define-key map (kbd "C-c C-w b") 'tabspaces-switch-to-buffer)
     (define-key map (kbd "C-c C-w d") 'tabspaces-close-workspace)
@@ -93,8 +100,8 @@ Workspace Keybindings are defined in the following variable:
 *** Buffer Filtering
 
 When =tabspaces-mode= is enabled use =tabspaces-switch-to-buffer= to choose from a
-filtered list of only those buffers in the current tab/workspace. Though nil by
-default, when =tabspaces-use-filtered-buffers-as-default= is set to 't' and
+filtered list of only those buffers in the current tab/workspace. Though =nil= by
+default, when =tabspaces-use-filtered-buffers-as-default= is set to =t= and
 =tabspaces-mode= is enabled, =switch-to-buffer= is globally remapped to
 =tabspaces-switch-to-buffer=, and thus only shows those buffers in the current
 workspace. For use with =consult-buffer=, see below.
@@ -134,13 +141,35 @@ displaying workspace buffers by default and all buffers when narrowing using
 "b". Note that you can also see all project related buffers and files just by
 narrowing with "p" in [[https://github.com/minad/consult#configuration][a default consult setup]].
 
+*NOTE*: If you typically toggle between having =tabspaces-mode= active and inactive,
+you may want to also include a hook function to turn off the
+=consult--source-workspace= above and modify the visibility of
+=consult--source-buffer=. You can do that with something like the following:
+
+#+begin_src emacs-lisp
+  (defun my--consult-tabspaces ()
+    "Deactivate isolated buffers when not using tabspaces."
+    (require 'consult)
+    (cond (tabspaces-mode
+           ;; hide full buffer list (still available with "b")
+           (consult-customize consult--source-buffer :hidden t :default nil)
+           (add-to-list 'consult-buffer-sources 'consult--source-workspace))
+          (t
+           ;; reset consult-buffer to show all buffers 
+           (consult-customize consult--source-buffer :hidden nil :default t)
+           (setq consult-buffer-sources (remove #'consult--source-workspace consult-buffer-sources)))))
+
+  (add-hook 'tabspaces-mode-hook #'my--consult-tabspaces)           
+#+end_src
+
 **** Included Buffers
 
 By default the =*scratch*= buffer is included in all workspaces. You can modify
-which buffers are included by changing the value of =tabspaces-include-buffers=.
+which buffers are included by default by changing the value of
+=tabspaces-include-buffers=.
 
-If you want emacs to startup with initial buffers in a workspace (something I
-find works well) you could do something like the following:
+If you want emacs to startup with a set of initial buffers in a workspace
+(something I find works well) you could do something like the following:
 
 #+begin_src emacs-lisp
   (defun my--tabspace-setup ()
@@ -166,8 +195,8 @@ find works well) you could do something like the following:
 
 
 ** Acknowledgments
-Code for this package is directly derived from, or otherwise inspired by, a
-variety of sources. These include:
+Code for this package is derived from, or inspired by, a variety of sources.
+These include:
 
 - The original buffer filter function
    + https://www.rousette.org.uk/archives/using-the-tab-bar-in-emacs/
