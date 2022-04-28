@@ -304,8 +304,7 @@ If PROJECT does not exist, create it, along with a `project.todo' file."
          (ignore-errors (mkdir project t))
          (if (featurep 'magit)
              (magit-init project)
-           (progn
-             (call-interactively #'vc-create-repo)))
+           (call-interactively #'vc-create-repo))
          (delete-other-windows)
          (with-temp-buffer (write-file "project-todo.org"))
          (if (featurep 'magit)
