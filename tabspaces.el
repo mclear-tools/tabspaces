@@ -289,15 +289,18 @@ If FRAME is nil, use the current frame."
 ;;;###autoload
 (defun tabspaces-open-or-create-project-and-workspace (project)
   "Open PROJECT from `project--list' in its own workspace.
-If PROJECT does not exist, create it, along with a `project.todo' file."
+If PROJECT is already open in its own workspace, switch to that workspace.
+If PROJECT does not exist, create it, along with a `project.todo' file, in its own workspace."
   (interactive
    (list
     (completing-read "Project Name: " project--list)))
   (cond ((member (list project) project--list)
-         (tab-bar-new-tab)
-         (let ((project-switch-commands #'project-find-file))
-           (project-switch-project project))
-         (tab-bar-rename-tab (tabspaces--name-tab-by-project-or-default)))
+         (if (member (file-name-nondirectory (directory-file-name project)) (tabspaces--list-tabspaces))
+             (tabspaces-switch-or-create-workspace (file-name-nondirectory (directory-file-name project)))
+           (tab-bar-new-tab)
+           (let ((project-switch-commands #'project-find-file))
+             (project-switch-project project))
+           (tab-bar-rename-tab (tabspaces--name-tab-by-project-or-default))))
         (t
          (tab-bar-new-tab)
          (setq default-directory project)
