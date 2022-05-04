@@ -84,6 +84,12 @@ This overrides buffers excluded by `tabspaces-exclude-buffers.'"
   "When t, remap `switch-to-buffer' to `tabspaces-switch-to-buffer'."
   :type 'boolean)
 
+(defcustom tabspaces-key-prefix "C-c C-w "
+  "Key prefix for the tabspaces-prefix-map keymap."
+  :group 'tabspaces
+  :type 'string)
+
+
 ;;;; Create Buffer Workspace
 
 (defun tabspaces-reset-buffer-list ()
@@ -323,14 +329,14 @@ If PROJECT does not exist, create it, along with a `project.todo' file, in its o
 ;;;###autoload
 (defvar tabspaces-prefix-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c C-w C") 'tabspaces-clear-buffers)
-    (define-key map (kbd "C-c C-w b") 'tabspaces-switch-to-buffer)
-    (define-key map (kbd "C-c C-w d") 'tabspaces-close-workspace)
-    (define-key map (kbd "C-c C-w k") 'tabspaces-kill-buffers-close-workspace)
-    (define-key map (kbd "C-c C-w o") 'tabspaces-open-or-create-project-and-workspace)
-    (define-key map (kbd "C-c C-w r") 'tabspaces-remove-current-buffer)
-    (define-key map (kbd "C-c C-w R") 'tabspaces-remove-selected-buffer)
-    (define-key map (kbd "C-c C-w s") 'tabspaces-switch-or-create-workspace)
+    (define-key map (kbd (concat tabspaces-key-prefix "C")) 'tabspaces-clear-buffers)
+    (define-key map (kbd (concat tabspaces-key-prefix "b")) 'tabspaces-switch-to-buffer)
+    (define-key map (kbd (concat tabspaces-key-prefix "d")) 'tabspaces-close-workspace)
+    (define-key map (kbd (concat tabspaces-key-prefix "k")) 'tabspaces-kill-buffers-close-workspace)
+    (define-key map (kbd (concat tabspaces-key-prefix "o")) 'tabspaces-open-or-create-project-and-workspace)
+    (define-key map (kbd (concat tabspaces-key-prefix "r")) 'tabspaces-remove-current-buffer)
+    (define-key map (kbd (concat tabspaces-key-prefix "R")) 'tabspaces-remove-selected-buffer)
+    (define-key map (kbd (concat tabspaces-key-prefix "s")) 'tabspaces-switch-or-create-workspace)
     map)
   "Keymap for tabspace/workspace commands.")
 
