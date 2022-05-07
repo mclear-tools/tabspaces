@@ -84,11 +84,10 @@ This overrides buffers excluded by `tabspaces-exclude-buffers.'"
   "When t, remap `switch-to-buffer' to `tabspaces-switch-to-buffer'."
   :type 'boolean)
 
-(defcustom tabspaces-key-prefix "C-c C-w "
+(defcustom tabspaces-keymap-prefix (kbd "C-c C-w")
   "Key prefix for the tabspaces-prefix-map keymap."
   :group 'tabspaces
   :type 'string)
-
 
 ;;;; Create Buffer Workspace
 
@@ -325,27 +324,35 @@ If PROJECT does not exist, create it, along with a `project.todo' file, in its o
          (let ((pr (project--find-in-directory default-directory)))
            (project-remember-project pr)))))
 
-;;;; Define Minor Mode
-;;;###autoload
-(defvar tabspaces-prefix-map
+;;;; Define Keymaps
+(defvar tabspaces-command-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd (concat tabspaces-key-prefix "C")) 'tabspaces-clear-buffers)
-    (define-key map (kbd (concat tabspaces-key-prefix "b")) 'tabspaces-switch-to-buffer)
-    (define-key map (kbd (concat tabspaces-key-prefix "d")) 'tabspaces-close-workspace)
-    (define-key map (kbd (concat tabspaces-key-prefix "k")) 'tabspaces-kill-buffers-close-workspace)
-    (define-key map (kbd (concat tabspaces-key-prefix "o")) 'tabspaces-open-or-create-project-and-workspace)
-    (define-key map (kbd (concat tabspaces-key-prefix "r")) 'tabspaces-remove-current-buffer)
-    (define-key map (kbd (concat tabspaces-key-prefix "R")) 'tabspaces-remove-selected-buffer)
-    (define-key map (kbd (concat tabspaces-key-prefix "s")) 'tabspaces-switch-or-create-workspace)
+    (define-key map (kbd "C") 'tabspaces-clear-buffers)
+    (define-key map (kbd "b") 'tabspaces-switch-to-buffer)
+    (define-key map (kbd "d") 'tabspaces-close-workspace)
+    (define-key map (kbd "k") 'tabspaces-kill-buffers-close-workspace)
+    (define-key map (kbd "o") 'tabspaces-open-or-create-project-and-workspace)
+    (define-key map (kbd "r") 'tabspaces-remove-current-buffer)
+    (define-key map (kbd "R") 'tabspaces-remove-selected-buffer)
+    (define-key map (kbd "s") 'tabspaces-switch-or-create-workspace)
     map)
-  "Keymap for tabspace/workspace commands.")
+  "Keymap for tabspace/workspace commands after `tabspaces-keymap-prefix'.")
+(fset 'tabspaces-command-map tabspaces-command-map)
 
+(defvar tabspaces-mode-map
+  (let ((map (make-sparse-keymap)))
+    (when tabspaces-keymap-prefix
+      (define-key map tabspaces-keymap-prefix 'tabspaces-command-map))
+    map)
+  "Keymap for Tabspaces mode.")
+
+;;;; Define Minor Mode
 ;;;###autoload
 (define-minor-mode tabspaces-mode
   "Create a global minor mode for `tabspaces', or buffer-isolated workspaces.
 This uses Emacs `tab-bar' and `project.el'."
   :lighter ""
-  :keymap tabspaces-prefix-map
+  :keymap tabspaces-mode-map
   :global t
   (cond (tabspaces-mode
          ;; Set up tabspace isolated buffers

@@ -84,22 +84,22 @@ Here's one possible way of setting up the package using [[https://github.com/jwi
 Workspace Keybindings are defined in the following variable:
 
 #+begin_src emacs-lisp
-(defvar tabspaces-prefix-map
+(defvar tabspaces-command-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd (concat tabspaces-key-prefix "C")) 'tabspaces-clear-buffers)
-    (define-key map (kbd (concat tabspaces-key-prefix "b")) 'tabspaces-switch-to-buffer)
-    (define-key map (kbd (concat tabspaces-key-prefix "d")) 'tabspaces-close-workspace)
-    (define-key map (kbd (concat tabspaces-key-prefix "k")) 'tabspaces-kill-buffers-close-workspace)
-    (define-key map (kbd (concat tabspaces-key-prefix "o")) 'tabspaces-open-or-create-project-and-workspace)
-    (define-key map (kbd (concat tabspaces-key-prefix "r")) 'tabspaces-remove-current-buffer)
-    (define-key map (kbd (concat tabspaces-key-prefix "R")) 'tabspaces-remove-selected-buffer)
-    (define-key map (kbd (concat tabspaces-key-prefix "s")) 'tabspaces-switch-or-create-workspace)
+    (define-key map (kbd "C") 'tabspaces-clear-buffers)
+    (define-key map (kbd "b") 'tabspaces-switch-to-buffer)
+    (define-key map (kbd "d") 'tabspaces-close-workspace)
+    (define-key map (kbd "k") 'tabspaces-kill-buffers-close-workspace)
+    (define-key map (kbd "o") 'tabspaces-open-or-create-project-and-workspace)
+    (define-key map (kbd "r") 'tabspaces-remove-current-buffer)
+    (define-key map (kbd "R") 'tabspaces-remove-selected-buffer)
+    (define-key map (kbd "s") 'tabspaces-switch-or-create-workspace)
     map)
-  "Keymap for tabspace/workspace commands.")
+  "Keymap for tabspace/workspace commands after `tabspaces-keymap-prefix'.")
 #+end_src
 
-The variable =tabspaces-key-prefix= sets a default key prefix (currently =C-c C-w=)
-for the keymap, but this can be changed to anything the user prefers.
+The variable =tabspaces-keymap-prefix= sets a key prefix (default is =C-c C-w=) for
+the keymap, but this can be changed to anything the user prefers.
 
 *** Buffer Filtering
 
