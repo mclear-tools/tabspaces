@@ -166,6 +166,24 @@ you may want to also include a hook function to turn off the
   (add-hook 'tabspaces-mode-hook #'my--consult-tabspaces)           
 #+end_src
 
+**** Ivy
+
+If you use ivy you can use this function to limit your buffer search to only
+those in the tabspace.
+
+#+begin_src emacs-lisp
+(defun tabspaces-ivy-switch-buffer (buffer)
+  "Display the local buffer BUFFER in the selected window.
+This is the frame/tab-local equivilant to `switch-to-buffer'."
+  (interactive
+   (list
+    (let ((blst (mapcar #'buffer-name (tabspaces-buffer-list))))
+      (read-buffer
+       "Switch to local buffer: " blst nil
+       (lambda (b) (member (if (stringp b) b (car b)) blst))))))
+  (ivy-switch-buffer buffer))
+#+end_src
+
 **** Included Buffers
 
 By default the =*scratch*= buffer is included in all workspaces. You can modify
@@ -210,3 +228,4 @@ These include:
    + https://github.com/florommel/bufferlo
 - Consult integration
    + https://github.com/minad/consult#multiple-sources
+     
