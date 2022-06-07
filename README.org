@@ -132,7 +132,7 @@ config to have workspace buffers in =consult-buffer=:
           :state    #'consult--buffer-state
           :default  t
           :items    (lambda () (consult--buffer-query
-                           :predicate #'tabspaces-local-buffer-p
+                           :predicate #'tabspaces--local-buffer-p
                            :sort 'visibility
                            :as #'buffer-name)))
 
