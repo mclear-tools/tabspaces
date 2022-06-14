@@ -84,7 +84,7 @@ This overrides buffers excluded by `tabspaces-exclude-buffers.'"
   "When t, remap `switch-to-buffer' to `tabspaces-switch-to-buffer'."
   :type 'boolean)
 
-(defcustom tabspaces-keymap-prefix (kbd "C-c C-w")
+(defcustom tabspaces-keymap-prefix "C-c TAB"
   "Key prefix for the tabspaces-prefix-map keymap."
   :group 'tabspaces
   :type 'string)
@@ -344,7 +344,7 @@ If PROJECT does not exist, create it, along with a `project.todo' file, in its o
 (defvar tabspaces-mode-map
   (let ((map (make-sparse-keymap)))
     (when tabspaces-keymap-prefix
-      (define-key map tabspaces-keymap-prefix 'tabspaces-command-map))
+      (define-key map (kbd tabspaces-keymap-prefix) 'tabspaces-command-map))
     map)
   "Keymap for Tabspaces mode.")
 

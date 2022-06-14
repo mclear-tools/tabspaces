@@ -98,7 +98,7 @@ Workspace Keybindings are defined in the following variable:
   "Keymap for tabspace/workspace commands after `tabspaces-keymap-prefix'.")
 #+end_src
 
-The variable =tabspaces-keymap-prefix= sets a key prefix (default is =C-c C-w=) for
+The variable =tabspaces-keymap-prefix= sets a key prefix (default is =C-c TAB=) for
 the keymap, but this can be changed to anything the user prefers.
 
 *** Buffer Filtering
