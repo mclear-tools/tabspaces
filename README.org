@@ -56,6 +56,13 @@ package does not modify =tab-bar=, =tab-line=, or =project= in any way. It simpl
 convenience functions for use with those packages. So it is still up to the user
 to configure tabs, etc., however they like.
 
+Here are some screenshots of tabspaces (with my [[https://github.com/Lambda-Emacs/lambda-themes][lambda-themes]]) and using =consult-buffer= (see below for instructions on that setup). You can see the workspace isolated buffers in each and the tabs at top:
+
+#+ATTR_HTML: :width 85%
+[[file:screenshots/tab-notes.png]]
+#+ATTR_HTML: :width 85%
+[[file:screenshots/tab-emacsd.png]]
+
 ** Installation
 
 You may install this package either from Melpa (=M-x package-install tabspaces
