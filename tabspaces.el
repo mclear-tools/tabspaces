@@ -255,7 +255,7 @@ default tabspace."
 
 (defun tabspaces-switch-to-buffer (buffer &optional norecord force-same-window)
   "Display the local buffer BUFFER in the selected window.
-This is the frame/tab-local equivilant to `switch-to-buffer'.
+This is the frame/tab-local equivalent to `switch-to-buffer'.
 The arguments NORECORD and FORCE-SAME-WINDOW are passed to `switch-to-buffer'."
   (interactive
    (list
