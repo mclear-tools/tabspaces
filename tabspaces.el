@@ -362,7 +362,7 @@ If PROJECT does not exist, create it, along with a `project.todo' file, in its o
   :group 'tabspaces
   :type 'boolean)
 
-(defcustom tabspaces-session-file "tabsession.el"
+(defcustom tabspaces-session-file (concat user-emacs-directory "tabsession.el")
   "File for saving tabspaces session."
   :group 'tabspaces
   :type 'string)
