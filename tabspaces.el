@@ -265,6 +265,29 @@ The arguments NORECORD and FORCE-SAME-WINDOW are passed to `switch-to-buffer'."
        (lambda (b) (member (if (stringp b) b (car b)) blst))))))
   (switch-to-buffer buffer norecord force-same-window))
 
+(defun tabspaces-switch-buffer-and-tab (buffer &optional norecord force-same-window)
+  "Switch to the tab of chosen buffer, or create buffer.
+If buffer does not exist in buffer-list user can either create a
+new tab with the new buffer or open a new buffer in the current
+tab."
+  (interactive
+   (list
+    (let ((blst (mapcar #'buffer-name (buffer-list))))
+      (read-buffer
+       "Switch to tab for buffer: " blst nil
+       (lambda (b) (member (if (stringp b) b (car b)) blst))))))
+  (cond ((get-buffer buffer)
+         (cl-loop for tab in (tabspaces--list-tabspaces)
+                  if (member buffer (mapcar #'buffer-name
+                                            (tabspaces--buffer-list nil (tab-bar--tab-index-by-name tab))))
+                  do
+                  (progn (tab-bar-switch-to-tab tab)
+                         (tabspaces-switch-to-buffer buffer))))
+        ((yes-or-no-p "Buffer not found -- create a new workspace with buffer?")
+         (switch-to-buffer-other-tab buffer))
+        (t
+         (switch-to-buffer buffer norecord force-same-window))))
+
 (defun tabspaces-clear-buffers (&optional frame)
   "Clear the tabspace's buffer list, except for the current buffer.
 If FRAME is nil, use the current frame."
