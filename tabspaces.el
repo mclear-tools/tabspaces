@@ -265,6 +265,15 @@ The arguments NORECORD and FORCE-SAME-WINDOW are passed to `switch-to-buffer'."
        (lambda (b) (member (if (stringp b) b (car b)) blst))))))
   (switch-to-buffer buffer norecord force-same-window))
 
+;; See https://emacs.stackexchange.com/a/53016/11934
+(defun tabspaces--report-dupes (xs)
+  (let ((ys  ()))
+    (while xs
+      (unless (member (car xs) ys) ; Don't check it if already known to be a dup.
+        (when (member (car xs) (cdr xs)) (push (car xs) ys)))
+      (setq xs  (cdr xs)))
+    ys))
+
 (defun tabspaces-switch-buffer-and-tab (buffer &optional norecord force-same-window)
   "Switch to the tab of chosen buffer, or create buffer.
 If buffer does not exist in buffer-list user can either create a
@@ -276,17 +285,39 @@ tab."
       (read-buffer
        "Switch to tab for buffer: " blst nil
        (lambda (b) (member (if (stringp b) b (car b)) blst))))))
-  (cond ((get-buffer buffer)
-         (cl-loop for tab in (tabspaces--list-tabspaces)
-                  if (member buffer (mapcar #'buffer-name
-                                            (tabspaces--buffer-list nil (tab-bar--tab-index-by-name tab))))
-                  do
-                  (progn (tab-bar-switch-to-tab tab)
-                         (tabspaces-switch-to-buffer buffer))))
-        ((yes-or-no-p "Buffer not found -- create a new workspace with buffer?")
-         (switch-to-buffer-other-tab buffer))
-        (t
-         (switch-to-buffer buffer norecord force-same-window))))
+
+  ;; Action on buffer
+  (let* ((tabcand nil)
+         (buflst nil)
+         ;; Provide flat list of all buffers in all tabs (and print dupe buffers).
+         ;; This is the list of all buffers to search through.
+         (bufflst (flatten-tree (dolist (tab (tabspaces--list-tabspaces) buflst)
+                                  (push (mapcar #'buffer-name (tabspaces--buffer-list nil (tab-bar--tab-index-by-name tab))) buflst))))
+         (dupe (member buffer (tabspaces--report-dupes bufflst))))
+    ;; Run through conditions:
+    (cond
+     ;; 1. Buffer exists and is not open in more than one tabspace.
+     ((and (get-buffer buffer)
+           (not dupe))
+      (dolist (tab (tabspaces--list-tabspaces))
+        (when (member buffer (mapcar #'buffer-name (tabspaces--buffer-list nil (tab-bar--tab-index-by-name tab))))
+          (progn (tab-bar-switch-to-tab tab)
+                 (tabspaces-switch-to-buffer buffer)))))
+     ;; 2. Buffer exists and is open in more than one tabspace.
+     ((and (get-buffer buffer)
+           dupe)
+      (dolist (tab (tabspaces--list-tabspaces) tabcand)
+        (when (member buffer (mapcar #'buffer-name (tabspaces--buffer-list nil (tab-bar--tab-index-by-name tab))))
+          (add-to-list 'tabcand tab)))
+      (progn
+        (tab-bar-switch-to-tab (completing-read "Select tab: " tabcand))
+        (tabspaces-switch-to-buffer buffer)))
+     ;; 3. Buffer does not exist.
+     ((yes-or-no-p "Buffer not found -- create a new workspace with buffer?")
+      (switch-to-buffer-other-tab buffer))
+     ;; 4. Default -- create buffer in current tabspace.
+     (t
+      (switch-to-buffer buffer norecord force-same-window)))))
 
 (defun tabspaces-clear-buffers (&optional frame)
   "Clear the tabspace's buffer list, except for the current buffer.
