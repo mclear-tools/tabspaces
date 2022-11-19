@@ -84,7 +84,11 @@ Here's one possible way of setting up the package using [[https://github.com/jwi
   (tabspaces-use-filtered-buffers-as-default t)
   (tabspaces-default-tab "Default")
   (tabspaces-remove-to-default t)
-  (tabspaces-include-buffers '("*scratch*")))
+  (tabspaces-include-buffers '("*scratch*"))
+  ;; sessions
+  (tabspaces-session t)
+  (tabspaces-session-auto-restore t))
+  
 #+end_src
 
 *** Keybindings 
@@ -101,6 +105,7 @@ Workspace Keybindings are defined in the following variable:
     (define-key map (kbd "r") 'tabspaces-remove-current-buffer)
     (define-key map (kbd "R") 'tabspaces-remove-selected-buffer)
     (define-key map (kbd "s") 'tabspaces-switch-or-create-workspace)
+    (define-key map (kbd "t") 'tabspaces-switch-buffer-and-tab)
     map)
   "Keymap for tabspace/workspace commands after `tabspaces-keymap-prefix'.")
 #+end_src
@@ -116,6 +121,14 @@ default, when =tabspaces-use-filtered-buffers-as-default= is set to =t= and
 =tabspaces-mode= is enabled, =switch-to-buffer= is globally remapped to
 =tabspaces-switch-to-buffer=, and thus only shows those buffers in the current
 workspace. For use with =consult-buffer=, see below.
+
+*** Switch Tabs via Buffer
+
+Sometimes the user may wish to switch to some open buffer in a tabspace and switch to that tab as well. Use =(=tabspaces-switch-buffer-and-tab=) to achieve this. If the buffer is open in more than one tabspace the user will be prompted to choose which tab to switch to. If there is no such buffer user will be prompted on whether to create it in a new tabspace or the current one.
+
+*** Persistent Tabspaces
+
+Rudimentary support for saving tabspaces across sessions has been implemented. Setting =tabspaces-session= to =t= ensures that all tabspaces and file-visiting buffers are saved. These may either be manually restored in the next session via =(=tabspaces-restore-session=) or they can be automatically opened when =tabspaces-mode= is activated if =tabspaces-session-auto-restore= is set to =t=.
 
 *** Additional Customization
 

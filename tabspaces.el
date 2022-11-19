@@ -475,6 +475,7 @@ If PROJECT does not exist, create it, along with a `project.todo' file, in its o
     (define-key map (kbd "r") 'tabspaces-remove-current-buffer)
     (define-key map (kbd "R") 'tabspaces-remove-selected-buffer)
     (define-key map (kbd "s") 'tabspaces-switch-or-create-workspace)
+    (define-key map (kbd "t") 'tabspaces-switch-buffer-and-tab)
     map)
   "Keymap for tabspace/workspace commands after `tabspaces-keymap-prefix'.")
 (fset 'tabspaces-command-map tabspaces-command-map)
