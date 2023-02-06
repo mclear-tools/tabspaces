@@ -128,7 +128,7 @@ Sometimes the user may wish to switch to some open buffer in a tabspace and swit
 
 *** Persistent Tabspaces
 
-Rudimentary support for saving tabspaces across sessions has been implemented. Setting =tabspaces-session= to =t= ensures that all tabspaces and file-visiting buffers are saved. These may either be manually restored in the next session via =(=tabspaces-restore-session=) or they can be automatically opened when =tabspaces-mode= is activated if =tabspaces-session-auto-restore= is set to =t=.
+Rudimentary support for saving tabspaces across sessions has been implemented. Setting =tabspaces-session= to =t= ensures that all tabspaces and file-visiting buffers are saved. These may either be manually restored in the next session via =(=tabspaces-restore-session)= or they can be automatically opened when =(tabspaces-mode)= is activated if =tabspaces-session-auto-restore= is set to =t=.
 
 *** Additional Customization
 
