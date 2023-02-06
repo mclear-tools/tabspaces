@@ -459,9 +459,20 @@ If PROJECT does not exist, create it, along with a `project.todo' file, in its o
   "Restore tabspaces session."
   (interactive)
   (load-file tabspaces-session-file)
+  ;; Start looping through the session list, but ensure to start from a
+  ;; temporary buffer "*tabspaces--placeholder*" in order not to pollute the
+  ;; buffer list with the final buffer from the previous tab.
+  (cl-loop for elm in tabspaces--session-list do
+           (switch-to-buffer "*tabspaces--placeholder*")
+           (tabspaces-switch-or-create-workspace (cdr elm))
+           (mapc #'find-file (car elm)))
+  ;; Once the session list is restored, remove the temporary buffer from the
+  ;; buffer list.
   (cl-loop for elm in tabspaces--session-list do
            (tabspaces-switch-or-create-workspace (cdr elm))
-           (mapcar #'find-file (car elm))))
+           (tabspaces-remove-selected-buffer "*tabspaces--placeholder*"))
+  ;; Finally, kill the temporary buffer to clean up.
+  (kill-buffer "*tabspaces--placeholder*"))
 
 
 ;;;; Define Keymaps
