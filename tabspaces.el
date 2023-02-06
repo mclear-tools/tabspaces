@@ -438,6 +438,8 @@ If PROJECT does not exist, create it, along with a `project.todo' file, in its o
 (defun tabspaces-save-session ()
   "Save tabspace name and buffers."
   (interactive)
+  ;; Start from an empty list.
+  (setq tabspaces--session-list nil)
   (cl-loop for tab in (tabspaces--list-tabspaces)
            do (progn
                 (tab-bar-select-tab-by-name tab)
