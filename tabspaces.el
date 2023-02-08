@@ -308,7 +308,7 @@ tab."
            dupe)
       (dolist (tab (tabspaces--list-tabspaces) tabcand)
         (when (member buffer (mapcar #'buffer-name (tabspaces--buffer-list nil (tab-bar--tab-index-by-name tab))))
-          (add-to-list 'tabcand tab)))
+          (push tabcand tab)))
       (progn
         (tab-bar-switch-to-tab (completing-read "Select tab: " tabcand))
         (tabspaces-switch-to-buffer buffer)))
@@ -366,8 +366,9 @@ If FRAME is nil, use the current frame."
 ;;;###autoload
 (defun tabspaces-open-or-create-project-and-workspace (&optional project)
   "Open PROJECT from `project--list' in its own workspace.
-If PROJECT is already open in its own workspace, switch to that workspace.
-If PROJECT does not exist, create it, along with a `project.todo' file, in its own workspace."
+If PROJECT is already open in its own workspace, switch to that
+workspace. If PROJECT does not exist, create it, along with a
+`project.todo' file, in its own workspace."
   (interactive
    (if (eq project--list 'unset)
        (call-interactively #'project-switch-project)
@@ -453,7 +454,6 @@ If PROJECT does not exist, create it, along with a `project.todo' file, in its o
             ";; Created " (current-time-string) "\n\n"
             ";; Tabs and buffers:\n")
     (insert "(setq tabspaces--session-list '" (format "%S" tabspaces--session-list) ")")))
-
 
 ;; Restore session
 ;;;###autoload
