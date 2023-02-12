@@ -375,34 +375,45 @@ If PROJECT is already open in its own workspace, switch to that
 workspace. If PROJECT does not exist, create it, along with a
 `project.todo' file, in its own workspace."
   (interactive
+   ;; Select project from completing-read
    (if (eq project--list 'unset)
        (call-interactively #'project-switch-project)
-     (list
-      (completing-read "Project Name: " project--list))))
-  (cond ((member (list project) project--list)
-         (if (member (file-name-nondirectory (directory-file-name project)) (tabspaces--list-tabspaces))
-             (tab-switch (file-name-nondirectory (directory-file-name project)))
+     (list (completing-read "Project Name: " project--list))))
+  ;; Set vars
+  (let* ((project-switch-commands #'project-find-file)
+         (pname (file-name-nondirectory (directory-file-name project)))
+         (session (concat project "." pname "-tabspaces-session.el")))
+    ;; Set conditions: 1. if project & tab exist then switch to it
+    (cond ((and (member (list project) project--list)
+                (member pname (tabspaces--list-tabspaces)))
+           (tab-switch pname))
+          ;; 2. if project but not tab exists open tabspace & check for session to restore, otherwise start session
+          ((and (member (list project) project--list)
+                (not (member pname (tabspaces--list-tabspaces))))
            (tab-bar-new-tab)
-           (let ((project-switch-commands #'project-find-file))
-             (project-switch-project project))
-           (tab-bar-rename-tab (tabspaces--name-tab-by-project-or-default))))
-        (t
-         (tab-bar-new-tab)
-         (setq default-directory project)
-         (ignore-errors (mkdir project t))
-         (if (featurep 'magit)
-             (magit-init project)
-           (call-interactively #'vc-create-repo))
-         (delete-other-windows)
-         (with-temp-buffer (write-file "project-todo.org"))
-         (if (featurep 'magit)
-             (magit-status-setup-buffer)
-           (project-vc-dir))
-         (dired-jump-other-window)
-         (tab-bar-rename-tab (file-name-nondirectory (directory-file-name (vc-root-dir))))
-         ;; make sure project.el remembers new project
-         (let ((pr (project--find-in-directory default-directory)))
-           (project-remember-project pr)))))
+           (tab-bar-rename-tab pname)
+           (let ((default-directory project))
+             (if (file-exists-p session)
+                 (tabspaces-restore-session session)
+               (project-find-file))))
+          ;; 3. Open new tab and create project
+          (t
+           (tab-bar-new-tab)
+           (setq default-directory project)
+           (ignore-errors (mkdir project t))
+           (if (featurep 'magit)
+               (magit-init project)
+             (call-interactively #'vc-create-repo))
+           (delete-other-windows)
+           (with-temp-buffer (write-file "project-todo.org"))
+           (if (featurep 'magit)
+               (magit-status-setup-buffer)
+             (project-vc-dir))
+           (dired-jump-other-window)
+           (tab-bar-rename-tab (file-name-nondirectory (directory-file-name (vc-root-dir))))
+           ;; make sure project.el remembers new project
+           (let ((pr (project--find-in-directory default-directory)))
+             (project-remember-project pr))))))
 
 ;;;; Tabspace Sessions
 
@@ -439,7 +450,7 @@ workspace. If PROJECT does not exist, create it, along with a
   "Make list of filenames."
   (flatten-tree (mapcar #'tabspaces--buffile bufs)))
 
-;; Save session
+;; Save global session
 ;;;###autoload
 (defun tabspaces-save-session ()
   "Save tabspace name and buffers."
@@ -447,6 +458,7 @@ workspace. If PROJECT does not exist, create it, along with a
   ;; Start from an empty list.
   (setq tabspaces--session-list nil)
   (let ((curr (tab-bar--current-tab-index)))
+    ;; loop over tabs
     (cl-loop for tab in (tabspaces--list-tabspaces)
              do (progn
                   (tab-bar-select-tab-by-name tab)
@@ -455,7 +467,6 @@ workspace. If PROJECT does not exist, create it, along with a
                                 (list (cons (tabspaces--store-buffers (tabspaces--buffer-list)) tab))))))
     ;; As tab-bar-select-tab starts counting from 1, we need to add 1 to the index.
     (tab-bar-select-tab (+ curr 1)))
-
   ;; Write to file
   (with-temp-file tabspaces-session-file
     (point-min)
@@ -465,12 +476,32 @@ workspace. If PROJECT does not exist, create it, along with a
             ";; Tabs and buffers:\n")
     (insert "(setq tabspaces--session-list '" (format "%S" tabspaces--session-list) ")")))
 
+;; Save current project session
+(defun tabspaces-save-current-project-session ()
+  "Save tabspace name and buffers for current tab & project."
+  (interactive)
+  (let ((tabspaces--session-list nil) ;; Start from an empty list.
+        (ctab (tabspaces--current-tab-name))
+        (current-session (with-current-buffer (buffer-name)
+                           (concat (vc-root-dir) "." (tabspaces--current-tab-name) "-tabspaces-session.el"))))
+    ;; Get buffers
+    (add-to-list 'tabspaces--session-list (cons (tabspaces--store-buffers (tabspaces--buffer-list)) ctab))
+    ;; Write to file
+    (with-temp-file current-session
+      (point-min)
+      (insert ";; -*- mode: emacs-lisp; lexical-binding:t; coding: utf-8-emacs; -*-\n"
+              tabspaces-session-header
+              ";; Created " (current-time-string) "\n\n"
+              ";; Tab and buffers:\n")
+      (insert "(setq tabspaces--session-list '" (format "%S" tabspaces--session-list) ")"))))
+
 ;; Restore session
 ;;;###autoload
-(defun tabspaces-restore-session ()
+(defun tabspaces-restore-session (&optional session)
   "Restore tabspaces session."
   (interactive)
-  (load-file tabspaces-session-file)
+  (load-file (or session
+                 tabspaces-session-file))
   ;; Start looping through the session list, but ensure to start from a
   ;; temporary buffer "*tabspaces--placeholder*" in order not to pollute the
   ;; buffer list with the final buffer from the previous tab.
