@@ -2,9 +2,10 @@
 #+author: Colin McLear
 #+language: en
 #+export_file_name: tabspaces.texi
+#+texinfo_filename: tabspaces.info
 #+texinfo_dir_category: Emacs
 #+texinfo_dir_title: Tabspaces: (tabspaces).
-#+texinfo_dir_desc: Workspaces using tab-bar and project.el 
+#+texinfo_dir_desc: Tabbed workspaces using tab-bar and project.el 
 
 #+html: <a href="https://www.gnu.org/software/emacs/"><img alt="GNU Emacs" src="https://github.com/minad/corfu/blob/screenshots/emacs.svg?raw=true"/></a>
 #+html: <a href="https://melpa.org/#/tabspaces"><img alt="MELPA" src="https://melpa.org/packages/tabspaces-badge.svg"/></a>
@@ -128,7 +129,14 @@ Sometimes the user may wish to switch to some open buffer in a tabspace and swit
 
 *** Persistent Tabspaces
 
-Rudimentary support for saving tabspaces across sessions has been implemented. Setting =tabspaces-session= to =t= ensures that all tabspaces and file-visiting buffers are saved. These may either be manually restored in the next session via =(=tabspaces-restore-session)= or they can be automatically opened when =(tabspaces-mode)= is activated if =tabspaces-session-auto-restore= is set to =t=.
+Rudimentary support for saving tabspaces across sessions has been implemented.
+Setting =tabspaces-session= to =t= ensures that all open tabspaces and file-visiting
+buffers are saved. These may either be restored interactively via
+=(tabspaces-restore-session)=, non-interactively via
+=(tabspaces--restore-session-on-startup)=, or they can be automatically opened
+when =(tabspaces-mode)= is activated if =tabspaces-session-auto-restore= is set to
+=t=. In addition, a particular project tabspace may be saved via
+=(tabspaces-save-current-project-session)=, and restored when the project is opened via =(tabspaces-open-or-create-project-and-workspace)=.
 
 *** Additional Customization
 
