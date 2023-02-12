@@ -154,6 +154,11 @@ non-nil, then specify a tab index in the given frame."
 ;;;; Project Workspace Helper Functions
 
 ;;;###autoload
+(defun tabspaces--current-tab-name ()
+  "Get name of current tab."
+  (cdr (assq 'name (tab-bar--current-tab))))
+
+;;;###autoload
 (defun tabspaces--list-tabspaces ()
   "Return a list of `tab-bar' tabs/workspaces."
   (mapcar (lambda (tab) (alist-get 'name tab)) (tab-bar-tabs)))
