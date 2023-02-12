@@ -481,6 +481,36 @@ workspace. If PROJECT does not exist, create it, along with a
   ;; Finally, kill the temporary buffer to clean up.
   (kill-buffer "*tabspaces--placeholder*"))
 
+;; Restore session used for startup
+(defun tabspaces--restore-session-on-startup ()
+  "Restore tabspaces session on startup.
+Unlike the interactive restore, this function does more clean up to remove
+unnecessary tab."
+  (load-file tabspaces-session-file)
+  ;; Start looping through the session list, but ensure to start from a
+  ;; temporary buffer "*tabspaces--placeholder*" in order not to pollute the
+  ;; buffer list with the final buffer from the previous tab.
+  (cl-loop for elm in tabspaces--session-list do
+           (switch-to-buffer "*tabspaces--placeholder*")
+           (tabspaces-switch-or-create-workspace (cdr elm))
+           (mapc #'find-file (car elm)))
+  ;; Once the session list is restored, remove the temporary buffer from the
+  ;; buffer list.
+  (cl-loop for elm in tabspaces--session-list do
+           (tabspaces-switch-or-create-workspace (cdr elm))
+           (tabspaces-remove-selected-buffer "*tabspaces--placeholder*"))
+  ;; If the tab restore started from an empty tab (e.g. at startup), remove the
+  ;; tab by name of "*tabspaces--placeholder*".
+  ;; NOTE When restore is interactively called, it is possible that an unnamed
+  ;; tab to be incorrectly closed as we call `switch-to-buffer', which would
+  ;; make the tab name to be "*tabspaces--placeholder*". At the startup, this
+  ;; shouldn't be an issue, but conduct a simple check before closing the tab.
+  (if (eq (tab-bar--tab-index-by-name "*tabspaces--placeholder*") 0)
+      ;; tab-bar-close-tab counts from 1.
+      (tab-bar-close-tab 1))
+  ;; Finally, kill the temporary buffer to clean up.
+  (kill-buffer "*tabspaces--placeholder*"))
+
 
 ;;;; Define Keymaps
 (defvar tabspaces-command-map
@@ -526,7 +556,7 @@ This uses Emacs `tab-bar' and `project.el'."
          (when tabspaces-session
            (add-hook 'kill-emacs-hook #'tabspaces-save-session))
          (when tabspaces-session-auto-restore
-           (add-hook 'emacs-startup-hook #'tabspaces-restore-session)))
+           (add-hook 'emacs-startup-hook #'tabspaces--restore-session-on-startup)))
         (t
          ;; Remove all modifications
          (dolist (frame (frame-list))
