@@ -441,10 +441,15 @@ workspace. If PROJECT does not exist, create it, along with a
   (interactive)
   ;; Start from an empty list.
   (setq tabspaces--session-list nil)
-  (cl-loop for tab in (tabspaces--list-tabspaces)
-           do (progn
-                (tab-bar-select-tab-by-name tab)
-                (add-to-list 'tabspaces--session-list (cons (tabspaces--store-buffers (tabspaces--buffer-list)) tab))))
+  (let ((curr (tab-bar--current-tab-index)))
+    (cl-loop for tab in (tabspaces--list-tabspaces)
+             do (progn
+                  (tab-bar-select-tab-by-name tab)
+                  (setq tabspaces--session-list
+                        (append tabspaces--session-list
+                                (list (cons (tabspaces--store-buffers (tabspaces--buffer-list)) tab))))))
+    ;; As tab-bar-select-tab starts counting from 1, we need to add 1 to the index.
+    (tab-bar-select-tab (+ curr 1)))
 
   ;; Write to file
   (with-temp-file tabspaces-session-file
