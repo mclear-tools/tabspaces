@@ -264,7 +264,7 @@ This is the frame/tab-local equivalent to `switch-to-buffer'.
 The arguments NORECORD and FORCE-SAME-WINDOW are passed to `switch-to-buffer'."
   (interactive
    (list
-    (let ((blst (mapcar #'buffer-name (tabspaces--buffer-list))))
+    (let ((blst (cl-remove (buffer-name) (mapcar #'buffer-name (tabspaces--buffer-list)))))
       (read-buffer
        "Switch to local buffer: " blst nil
        (lambda (b) (member (if (stringp b) b (car b)) blst))))))
@@ -286,7 +286,7 @@ new tab with the new buffer or open a new buffer in the current
 tab."
   (interactive
    (list
-    (let ((blst (mapcar #'buffer-name (buffer-list))))
+    (let ((blst (cl-remove (buffer-name) (mapcar #'buffer-name (buffer-list)))))
       (read-buffer
        "Switch to tab for buffer: " blst nil
        (lambda (b) (member (if (stringp b) b (car b)) blst))))))
