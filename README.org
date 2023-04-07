@@ -16,7 +16,7 @@ version-controlled projects. It should work with emacs 27+. It is tested to work
 with a single frame workflow, but should work with multiple frames as well. 
 
 While other great packages exist for managing workspaces, such as [[https://github.com/alphapapa/bufler.el][bufler]],
-[[https://github.com/nex3/perspective-el][perspective]] and [[https://github.com/Bad-ptr/persp-mode.el][persp-mode]], this package is much less complex, and works
+[[https://github.com/nex3/perspective-el][perspective]] and [[https://github.com/Bad-ptr/persp-mode.el][persp-mode]], this package is less complex than those alternatives, and works
 entirely based on the built-in (to emacs 27+) tab-bar and project packages. If
 you like simple, this may be the workspace package for you. That said, bufler,
 perspective or persp-mode, etc. may better fit your needs.
