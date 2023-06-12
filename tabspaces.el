@@ -378,7 +378,7 @@ workspace. If PROJECT does not exist, create it, along with a
    ;; Select project from completing-read
    (if (eq project--list 'unset)
        (call-interactively #'project-switch-project)
-     (list (completing-read "Project Name: " project--list))))
+     (list (project-prompt-project-dir))))
   ;; Set vars
   (let* ((project-switch-commands #'project-find-file)
          (pname (file-name-nondirectory (directory-file-name project)))
