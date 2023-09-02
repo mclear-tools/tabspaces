@@ -375,10 +375,8 @@ If PROJECT is already open in its own workspace, switch to that
 workspace. If PROJECT does not exist, create it, along with a
 `project.todo' file, in its own workspace."
   ;; Select project from completing-read
-  (cond ((eq project--list 'unset)
-         (call-interactively #'project-switch-project))
-        ((interactive
-          (list (project-prompt-project-dir)))))
+  (interactive
+   (list (project-prompt-project-dir)))
   ;; Set vars
   (let* ((project-switch-commands #'project-find-file)
          (pname (file-name-nondirectory (directory-file-name project)))
