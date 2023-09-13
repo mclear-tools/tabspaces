@@ -90,6 +90,16 @@ This overrides buffers excluded by `tabspaces-exclude-buffers.'"
   :group 'tabspaces
   :type 'string)
 
+(defcustom tabspaces-initialize-project-with-todo t
+  "When t, create a `tabspaces-todo-file-name' file in a project when creating a workspace for it."
+  :group 'tabspaces
+  :type 'boolean)
+
+(defcustom tabspaces-todo-file-name "project-todo.org"
+  "The name of the TODO file to create if non-existing for new workspaces."
+  :group 'tabspaces
+  :type 'string)
+
 ;;;; Create Buffer Workspace
 
 (defun tabspaces-reset-buffer-list ()
@@ -404,7 +414,9 @@ workspace. If PROJECT does not exist, create it, along with a
                (magit-init project)
              (call-interactively #'vc-create-repo))
            (delete-other-windows)
-           (with-temp-buffer (write-file "project-todo.org"))
+           (when (and tabspaces-initialize-project-with-todo
+                      (not (file-exists-p tabspaces-todo-file-name)))
+             (with-temp-buffer (write-file tabspaces-todo-file-name)))
            (if (featurep 'magit)
                (magit-status-setup-buffer)
              (project-vc-dir))
