@@ -82,6 +82,7 @@ This overrides buffers excluded by `tabspaces-exclude-buffers.'"
 
 (defcustom tabspaces-use-filtered-buffers-as-default nil
   "When t, remap `switch-to-buffer' to `tabspaces-switch-to-buffer'."
+  :group 'tabspaces
   :type 'boolean)
 
 (defcustom tabspaces-keymap-prefix "C-c TAB"
