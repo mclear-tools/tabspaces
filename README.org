@@ -86,6 +86,8 @@ Here's one possible way of setting up the package using [[https://github.com/jwi
   (tabspaces-default-tab "Default")
   (tabspaces-remove-to-default t)
   (tabspaces-include-buffers '("*scratch*"))
+  (tabspaces-initialize-project-with-todo t)
+  (tabspaces-todo-file-name "project-todo.org")
   ;; sessions
   (tabspaces-session t)
   (tabspaces-session-auto-restore t))
@@ -242,6 +244,13 @@ If you want emacs to startup with a set of initial buffers in a workspace
   (add-hook 'after-init-hook #'my--tabspace-setup)
 #+end_src
 
+**** =TODO= file per project
+
+By default Tabspaces will create a =project-todo.org= file at the root of the project
+when creating a new workspace using =tabspaces-open-or-create-project-and-workspace=.
+
+Use =tabspaces-todo-file-name= to change the name of that file, or =tabspaces-initialize-project-with-todo=
+to disable this feature completely.
 
 
 ** Acknowledgments
