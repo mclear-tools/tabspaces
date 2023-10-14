@@ -100,6 +100,11 @@ This overrides buffers excluded by `tabspaces-exclude-buffers.'"
   :group 'tabspaces
   :type 'string)
 
+(defcustom tabspaces-project-switch-commands project-switch-commands
+  "Set this value if you wish to run a specific command, such as `find-file' on project switch. Otherwise this will default to the value of `project-switch-commands'."
+  :group 'tabspaces
+  :type 'sexp)
+
 ;;;; Create Buffer Workspace
 
 (defun tabspaces-reset-buffer-list ()
@@ -226,7 +231,7 @@ use the project.el command-menu, then use
 When called, this function will use the project corresponding
 to the selected directory DIR."
   (interactive (list (project-prompt-project-dir)))
-  (let ((project-switch-commands #'project-find-file))
+  (let ((project-switch-commands tabspaces-project-switch-commands))
     (project-switch-project dir)))
 
 ;;;;; Buffer Functions
@@ -389,7 +394,7 @@ workspace. If PROJECT does not exist, create it, along with a
   (interactive
    (list (project-prompt-project-dir)))
   ;; Set vars
-  (let* ((project-switch-commands #'project-find-file)
+  (let* ((project-switch-commands tabspaces-project-switch-commands)
          (pname (file-name-nondirectory (directory-file-name project)))
          (session (concat project "." pname "-tabspaces-session.el")))
     ;; Set conditions: 1. if project & tab exist then switch to it
@@ -404,7 +409,7 @@ workspace. If PROJECT does not exist, create it, along with a
            (let ((default-directory project))
              (if (file-exists-p session)
                  (tabspaces-restore-session session)
-               (project-find-file))))
+               (project-switch-project project))))
           ;; 3. Open new tab and create project
           (t
            (tab-bar-new-tab)
