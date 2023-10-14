@@ -214,6 +214,24 @@ This is the frame/tab-local equivilant to `switch-to-buffer'."
   (ivy-switch-buffer buffer))
 #+end_src
 
+Alternatively, you may use the following function, which is basically a clone of =ivy-switch-buffer= (and thus uses ivy's own implementation framework), but with an additional predicate that only allows showing buffers from the current tabspace.
+
+#+begin_src emacs-lisp
+(defun tabspaces-ivy-switch-buffer ()
+  "Switch to another buffer in the current tabspace."
+  (interactive)
+  (ivy-read "Switch to buffer: " #'internal-complete-buffer
+            :predicate (when (tabspaces--current-tab-name)
+                         (let ((local-buffers (tabspaces--buffer-list)))
+                           (lambda (name-and-buffer)
+                             (member (cdr name-and-buffer) local-buffers))))
+            :keymap ivy-switch-buffer-map
+            :preselect (buffer-name (other-buffer (current-buffer)))
+            :action #'ivy--switch-buffer-action
+            :matcher #'ivy--switch-buffer-matcher
+            :caller 'ivy-switch-buffer))
+#+end_src
+
 **** Included Buffers
 
 By default the =*scratch*= buffer is included in all workspaces. You can modify
