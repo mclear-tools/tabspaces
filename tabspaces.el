@@ -265,12 +265,11 @@ default tabspace."
   (tabspaces--add-to-default-tabspace buffer))
 
 (defun tabspaces-remove-current-buffer (&optional buffer-or-name)
-  "Bury and remove current buffer BUFFER-OR-NAME from the tabspace list.
+    "Bury and remove current buffer BUFFER-OR-NAME from the tabspace list.
 If `tabspaces-remove-to-default' is t then add the buffer to the
 default tabspace."
-  (interactive)
   (let ((buffer (or buffer-or-name (current-buffer))))
-    (delete (get-buffer buffer) (frame-parameter nil 'buffer-list))
+    (delete (frame-parameter nil 'buffer-list) (get-buffer buffer))
     (bury-buffer buffer-or-name)
     (tabspaces--add-to-default-tabspace buffer)))
 
