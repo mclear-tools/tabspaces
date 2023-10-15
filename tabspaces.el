@@ -384,6 +384,16 @@ If FRAME is nil, use the current frame."
 
 ;;;;; Open or Create Project in Workspace
 ;;;###autoload
+(defun tabspaces--generate-unique-tab-name (base-name existing-names)
+  "Generate a unique tab name based on BASE-NAME and the list of EXISTING-NAMES."
+  (let ((new-name base-name)
+        (count 1))
+    (while (member new-name existing-names)
+      (setq new-name (format "%s<%d>" base-name count))
+      (setq count (1+ count)))
+    new-name))
+
+;;;###autoload
 (defun tabspaces-open-or-create-project-and-workspace (&optional project)
   "Open PROJECT from `project--list' in its own workspace.
 If PROJECT is already open in its own workspace, switch to that
@@ -394,41 +404,102 @@ workspace. If PROJECT does not exist, create it, along with a
    (list (project-prompt-project-dir)))
   ;; Set vars
   (let* ((project-switch-commands tabspaces-project-switch-commands)
-         (pname (file-name-nondirectory (directory-file-name project)))
-         (session (concat project "." pname "-tabspaces-session.el")))
-    ;; Set conditions: 1. if project & tab exist then switch to it
-    (cond ((and (member (list project) project--list)
-                (member pname (tabspaces--list-tabspaces)))
-           (tab-switch pname))
-          ;; 2. if project but not tab exists open tabspace & check for session to restore, otherwise start session
-          ((and (member (list project) project--list)
-                (not (member pname (tabspaces--list-tabspaces))))
-           (tab-bar-new-tab)
-           (tab-bar-rename-tab pname)
-           (let ((default-directory project))
-             (if (file-exists-p session)
-                 (tabspaces-restore-session session)
-               (project-switch-project project))))
-          ;; 3. Open new tab and create project
-          (t
-           (tab-bar-new-tab)
-           (setq default-directory project)
-           (ignore-errors (mkdir project t))
-           (if (featurep 'magit)
-               (magit-init project)
-             (call-interactively #'vc-create-repo))
-           (delete-other-windows)
-           (when (and tabspaces-initialize-project-with-todo
-                      (not (file-exists-p tabspaces-todo-file-name)))
-             (with-temp-buffer (write-file tabspaces-todo-file-name)))
-           (if (featurep 'magit)
-               (magit-status-setup-buffer)
-             (project-vc-dir))
-           (dired-jump-other-window)
-           (tab-bar-rename-tab (file-name-nondirectory (directory-file-name (vc-root-dir))))
-           ;; make sure project.el remembers new project
-           (let ((pr (project--find-in-directory default-directory)))
-             (project-remember-project pr))))))
+         (project-root-name (file-name-nondirectory (directory-file-name project)))
+         (project-directory (file-name-directory project))
+         (existing-tab-names (tabspaces--list-tabspaces))
+         (tab-name (if (member project-root-name existing-tab-names)
+                       (tabspaces--generate-unique-tab-name project-root-name existing-tab-names)
+                     project-root-name))
+         (session (concat project "." project-root-name "-tabspaces-session.el")))
+    ;; Set conditions:
+    (cond
+     ;; 1. if project & tab exist then switch to it
+     ((and (member (list project) project--list)
+           (member tab-name existing-tab-names))
+      (tab-switch tab-name))
+     ;; 2. if project but not tab exists open tabspace & check for session to restore, otherwise start session
+     ((and (member (list project) project--list)
+           (not (member tab-name existing-tab-names)))
+      (tab-bar-new-tab)
+      (tab-bar-rename-tab tab-name)
+      (let ((default-directory project-directory))
+        (if (file-exists-p session)
+            (tabspaces-restore-session session)
+          (project-switch-project project))))
+     ;; 3. Open new tab and create project
+     (t
+      (tab-bar-new-tab)
+      (setq default-directory project-directory)
+      (ignore-errors (mkdir project-directory t))
+      (if (featurep 'magit)
+          (magit-init project-directory)
+        (call-interactively #'vc-create-repo))
+      (delete-other-windows)
+      (when (and tabspaces-initialize-project-with-todo
+                 (not (file-exists-p tabspaces-todo-file-name)))
+        (with-temp-buffer (write-file tabspaces-todo-file-name)))
+      (if (featurep 'magit)
+          (magit-status-setup-buffer)
+        (project-vc-dir))
+      (dired-jump-other-window)
+      (tab-bar-rename-tab tab-name)
+      ;; make sure project.el remembers new project
+      (let ((pr (project--find-in-directory default-directory)))
+        (project-remember-project pr))))))
+
+;;;###autoload
+(defun tabspaces-open-or-create-project-and-workspace (&optional project)
+  "Open PROJECT from `project--list' in its own workspace.
+If PROJECT is already open in its own workspace, switch to that
+workspace. If PROJECT does not exist, create it, along with a
+`project.todo' file, in its own workspace."
+  ;; Select project from completing-read
+  (interactive
+   (list (project-prompt-project-dir)))
+  ;; Set vars
+  (let* ((project-switch-commands tabspaces-project-switch-commands)
+         (project-root-name (file-name-nondirectory (directory-file-name project)))
+         (project-directory (file-name-directory project))
+         (existing-tab-names (tabspaces--list-tabspaces))
+         (existing-tab (assoc project project--list))
+         (session (concat project "." project-root-name "-tabspaces-session.el"))
+         (tab-name (if (member project-root-name existing-tab-names)
+                       (generate-unique-tab-name project-root-name existing-tab-names)
+                     project-root-name)))
+    ;; Set conditions:
+    (cond
+     ;; 1. if project & tab exist then switch to it
+     ((and existing-tab (member tab-name existing-tab-names))
+      (tab-switch tab-name))
+     ;; 2. if project but not tab exists open tabspace & check for session to restore, otherwise start session
+     ((and (member project project--list)
+           (not existing-tab))
+      (tab-bar-new-tab)
+      (tab-bar-rename-tab tab-name)
+      (let ((default-directory project-directory))
+        (if (file-exists-p session)
+            (tabspaces-restore-session session)
+          (project-switch-project project))))
+     ;; 3. Open new tab and create project
+     (t
+      (tab-bar-new-tab)
+      (setq default-directory project-directory)
+      (ignore-errors (mkdir project-directory t))
+      (if (featurep 'magit)
+          (magit-init project-directory)
+        (call-interactively #'vc-create-repo))
+      (delete-other-windows)
+      (when (and tabspaces-initialize-project-with-todo
+                 (not (file-exists-p tabspaces-todo-file-name)))
+        (with-temp-buffer (write-file tabspaces-todo-file-name)))
+      (if (featurep 'magit)
+          (magit-status-setup-buffer)
+        (project-vc-dir))
+      (dired-jump-other-window)
+      (tab-bar-rename-tab tab-name)
+      ;; make sure project.el remembers new project
+      (let ((pr (project--find-in-directory default-directory)))
+        (project-remember-project pr))))))
 
 ;;;; Tabspace Sessions
 
