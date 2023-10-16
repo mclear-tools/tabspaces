@@ -26,8 +26,8 @@
 
 ;;; Commentary:
 
-;; This package provides several functions to facilitate a single frame-based
-;; workflow with one workspace per tab, integration with project.el (for
+;; This package provides several functions to facilitate a frame-based
+;; tab workflow with one workspace per tab, integration with project.el (for
 ;; project-based workspaces) and buffer isolation per tab (i.e. a "tabspace"
 ;; workspace). The package assumes project.el and tab-bar.el are both present
 ;; (they are built-in to Emacs 27.1+).
