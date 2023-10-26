@@ -364,7 +364,7 @@ If FRAME is nil, use the current frame."
             (list
              (completing-read "Select or create tab: " tabs nil nil))))))
   (cond ((member workspace (tabspaces--list-tabspaces))
-         (tab-switch workspace))
+         (tab-bar-switch-to-tab workspace))
         (t
          (tab-new)
          (tab-rename workspace))))
@@ -416,7 +416,7 @@ workspace. If PROJECT does not exist, create it, along with a
      ;; 1. if project & tab exist then switch to it
      ((and (member (list project) project--list)
            (member tab-name existing-tab-names))
-      (tab-switch tab-name))
+      (tab-bar-switch-to-tab tab-name))
      ;; 2. if project but not tab exists open tabspace & check for session to restore, otherwise start session
      ((and (member (list project) project--list)
            (not (member tab-name existing-tab-names)))
