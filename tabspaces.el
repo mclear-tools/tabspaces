@@ -394,20 +394,20 @@ If FRAME is nil, use the current frame."
     new-name))
 
 ;;;###autoload
-(defun tabspaces-open-or-create-project-and-workspace (&optional project)
+(defun tabspaces-open-or-create-project-and-workspace (&optional project prefix)
   "Open PROJECT from `project--list' in its own workspace.
 If PROJECT is already open in its own workspace, switch to that
 workspace. If PROJECT does not exist, create it, along with a
 `project.todo' file, in its own workspace."
   ;; Select project from completing-read
   (interactive
-   (list (project-prompt-project-dir)))
+   (list (project-prompt-project-dir) current-prefix-arg))
   ;; Set vars
   (let* ((project-switch-commands tabspaces-project-switch-commands)
          (project-root-name (file-name-nondirectory (directory-file-name project)))
          (project-directory (file-name-directory project))
          (existing-tab-names (tabspaces--list-tabspaces))
-         (tab-name (if (member project-root-name existing-tab-names)
+         (tab-name (if (and (member project-root-name existing-tab-names) prefix)
                        (tabspaces--generate-unique-tab-name project-root-name existing-tab-names)
                      project-root-name))
          (session (concat project "." project-root-name "-tabspaces-session.el")))
