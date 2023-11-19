@@ -629,7 +629,8 @@ This uses Emacs `tab-bar' and `project.el'."
          ;; Remove all modifications
          (dolist (frame (frame-list))
            (tabspaces--reset-buffer-predicate frame))
-         (define-key (current-global-map) [remap switch-to-buffer] nil)
+         (when tabspaces-use-filtered-buffers-as-default
+           (define-key (current-global-map) [remap switch-to-buffer] nil))
          (setq tab-bar-tab-post-open-functions (remove #'tabspaces--tab-post-open-function tab-bar-tab-post-open-functions))
          (remove-hook 'after-make-frame-functions #'tabspaces--set-buffer-predicate)
          (remove-hook 'kill-emacs-hook #'tabspaces-save-session)
