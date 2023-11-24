@@ -75,10 +75,17 @@
 
 (defcustom tabspaces-include-buffers '("*scratch*")
   "Buffers that should always get included in a new tab or frame.
-This is a list of regular expressions that match buffer names.
-This overrides buffers excluded by `tabspaces-exclude-buffers.'"
-  :type '(repeat string)
-  :group 'tabspaces)
+This is a list of regular expressions that match buffer names,
+which overrides buffers excluded by `tabspaces-exclude-buffers'."
+  :group 'tabspaces
+  :type '(repeat string))
+
+(defcustom tabspaces-exclude-buffers nil
+  "Buffers that should always get excluded in a new tab or frame.
+This is a list of regular expressions that match buffer names,
+which does not override buffers inside `tabspaces-include-buffers'."
+  :group 'tabspaces
+  :type '(repeat string))
 
 (defcustom tabspaces-use-filtered-buffers-as-default nil
   "When t, remap `switch-to-buffer' to `tabspaces-switch-to-buffer'."
@@ -91,7 +98,8 @@ This overrides buffers excluded by `tabspaces-exclude-buffers.'"
   :type 'string)
 
 (defcustom tabspaces-initialize-project-with-todo t
-  "When t, create a `tabspaces-todo-file-name' file in a project when creating a workspace for it."
+  "Non-nil means to create a `tabspaces-todo-file-name' file in the project
+when creating a workspace for it."
   :group 'tabspaces
   :type 'boolean)
 
@@ -101,7 +109,10 @@ This overrides buffers excluded by `tabspaces-exclude-buffers.'"
   :type 'string)
 
 (defcustom tabspaces-project-switch-commands project-switch-commands
-  "Set this value if you wish to run a specific command, such as `find-file' on project switch. Otherwise this will default to the value of `project-switch-commands'."
+  "Available commands when switch between projects.
+Change this value if you wish to run a specific command, such as
+`find-file' on project switch.  Otherwise this will default to
+the value of `project-switch-commands'."
   :group 'tabspaces
   :type 'sexp)
 
@@ -122,13 +133,17 @@ Only the current window buffers and buffers in
                          (seq-filter (lambda (buffer)
                                        (or (member buffer window-buffers)
                                            (member (buffer-name buffer)
-                                                   tabspaces-include-buffers)))
+                                                   tabspaces-include-buffers)
+                                           (not (member (buffer-name buffer)
+                                                        tabspaces-exclude-buffers))))
                                      (frame-parameter nil 'buffer-list))))
   (set-frame-parameter nil
                        'buried-buffer-list
                        (seq-filter (lambda (buffer)
-                                     (member (buffer-name buffer)
-                                             tabspaces-include-buffers))
+                                     (or (member (buffer-name buffer)
+                                                 tabspaces-include-buffers)
+                                         (not (member (buffer-name buffer)
+                                                      tabspaces-exclude-buffers))))
                                    (frame-parameter nil 'buried-buffer-list))))
 
 (defun tabspaces--tab-post-open-function (_tab)
