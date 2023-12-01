@@ -260,7 +260,9 @@ default tabspace."
     (let ((blst (mapcar (lambda (b) (buffer-name b))
                         (tabspaces--buffer-list))))
       ;; select buffer
-      (read-buffer "Remove buffer from tabspace: " nil t
+      (read-buffer (format "Remove buffer from `%s' tabspace: "
+                           (tabspaces--current-tab-name))
+                   nil t
                    (lambda (b) (member (car b) blst))))))
   ;; delete window of buffer
   (cond ((eq buffer (window-buffer (selected-window)))
@@ -273,7 +275,8 @@ default tabspace."
              (bury-buffer)
            (delete-window)))
         (t
-         (message "buffer removed from tabspace")))
+         (message (format "Buffer `%s' removed from `%s' tabspace."
+                          buffer (tabspaces--current-tab-name)))))
   ;; delete buffer from tabspace buffer list
   (delete (get-buffer buffer) (frame-parameter nil 'buffer-list))
   ;; add buffer to default tabspace
