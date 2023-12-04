@@ -220,10 +220,9 @@ The default tab-bar name uses the buffer name along with a counter."
   "Add BUFFER to default tabspace buffer list."
   (let ((tab-names (mapcar
                     (lambda (tab) (alist-get 'name tab))
-                    (funcall tab-bar-tabs-function))))
-    (when (and tabspaces-remove-to-default
-               (member tabspaces-default-tab tab-names))
-      ;; add buffer to default tabspace
+                    (tab-bar-tabs))))
+    ;; Only when `tabspaces-default-tab' exists.
+    (when (member tabspaces-default-tab tab-names)
       (tab-bar-select-tab-by-name tabspaces-default-tab)
       (display-buffer buffer)
       (switch-to-buffer buffer t nil)
@@ -259,37 +258,39 @@ default tabspace."
    (list
     (let ((blst (mapcar (lambda (b) (buffer-name b))
                         (tabspaces--buffer-list))))
-      ;; select buffer
+      ;; Select buffer.
       (read-buffer (format "Remove buffer from `%s' tabspace: "
                            (tabspaces--current-tab-name))
                    nil t
                    (lambda (b) (member (car b) blst))))))
-  ;; delete window of buffer
-  (cond ((eq buffer (window-buffer (selected-window)))
-         (if (one-window-p t)
-             (bury-buffer)
-           (delete-window)))
-        ((get-buffer-window buffer)
-         (select-window (get-buffer-window buffer) t)
-         (if (one-window-p t)
-             (bury-buffer)
-           (delete-window)))
-        (t
-         (message (format "Buffer `%s' removed from `%s' tabspace."
-                          buffer (tabspaces--current-tab-name)))))
-  ;; delete buffer from tabspace buffer list
-  (delete (get-buffer buffer) (frame-parameter nil 'buffer-list))
-  ;; add buffer to default tabspace
-  (tabspaces--add-to-default-tabspace buffer))
+  ;; Remove buffer from current tabspace's buffer list.
+  (tabspaces-remove-buffer buffer))
 
-(defun tabspaces-remove-current-buffer (&optional buffer-or-name)
-    "Bury and remove current buffer BUFFER-OR-NAME from the tabspace list.
-If `tabspaces-remove-to-default' is t then add the buffer to the
-default tabspace."
-  (let ((buffer (or buffer-or-name (current-buffer))))
-    (delete (frame-parameter nil 'buffer-list) (get-buffer buffer))
-    (bury-buffer buffer-or-name)
-    (tabspaces--add-to-default-tabspace buffer)))
+(defun tabspaces-remove-buffer (&optional buffer)
+  "Bury and remove BUFFER from current tabspace.
+If BUFFER is nil, remove current buffer.  If
+`tabspaces-remove-to-default' is t then add the buffer to the
+default tabspace after remove."
+  (interactive)
+  (let ((buffer (get-buffer (or buffer (current-buffer))))
+        (buffer-list (frame-parameter nil 'buffer-list)))
+    (cond
+     ((eq buffer (window-buffer (selected-window)))
+      (if (one-window-p t)
+          (bury-buffer)
+        (delete-window)))
+     ((get-buffer-window buffer)
+      (select-window (get-buffer-window buffer) t)
+      (if (one-window-p t)
+          (bury-buffer)
+        (delete-window)))
+     (t
+      (message (format "Buffer `%s' removed from `%s' tabspace."
+                       buffer (tabspaces--current-tab-name)))))
+    (bury-buffer buffer)
+    (delete buffer buffer-list)
+    (when tabspaces-remove-to-default
+      (tabspaces--add-to-default-tabspace buffer))))
 
 (defun tabspaces-switch-to-buffer (buffer &optional norecord force-same-window)
   "Display the local buffer BUFFER in the selected window.
@@ -330,7 +331,8 @@ tab."
          ;; Provide flat list of all buffers in all tabs (and print dupe buffers).
          ;; This is the list of all buffers to search through.
          (bufflst (flatten-tree (dolist (tab (tabspaces--list-tabspaces) buflst)
-                                  (push (mapcar #'buffer-name (tabspaces--buffer-list nil (tab-bar--tab-index-by-name tab))) buflst))))
+                                  (push (mapcar #'buffer-name (tabspaces--buffer-list nil (tab-bar--tab-index-by-name tab)))
+                                        buflst))))
          (dupe (member buffer (tabspaces--report-dupes bufflst))))
     ;; Run through conditions:
     (cond
@@ -601,15 +603,15 @@ unnecessary tab."
 ;;;; Define Keymaps
 (defvar tabspaces-command-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C") 'tabspaces-clear-buffers)
-    (define-key map (kbd "b") 'tabspaces-switch-to-buffer)
-    (define-key map (kbd "d") 'tabspaces-close-workspace)
-    (define-key map (kbd "k") 'tabspaces-kill-buffers-close-workspace)
-    (define-key map (kbd "o") 'tabspaces-open-or-create-project-and-workspace)
-    (define-key map (kbd "r") 'tabspaces-remove-current-buffer)
-    (define-key map (kbd "R") 'tabspaces-remove-selected-buffer)
-    (define-key map (kbd "s") 'tabspaces-switch-or-create-workspace)
-    (define-key map (kbd "t") 'tabspaces-switch-buffer-and-tab)
+    (define-key map (kbd "C") #'tabspaces-clear-buffers)
+    (define-key map (kbd "b") #'tabspaces-switch-to-buffer)
+    (define-key map (kbd "d") #'tabspaces-close-workspace)
+    (define-key map (kbd "k") #'tabspaces-kill-buffers-close-workspace)
+    (define-key map (kbd "o") #'tabspaces-open-or-create-project-and-workspace)
+    (define-key map (kbd "r") #'tabspaces-remove-buffer)
+    (define-key map (kbd "R") #'tabspaces-remove-selected-buffer)
+    (define-key map (kbd "s") #'tabspaces-switch-or-create-workspace)
+    (define-key map (kbd "t") #'tabspaces-switch-buffer-and-tab)
     map)
   "Keymap for tabspace/workspace commands after `tabspaces-keymap-prefix'.")
 (fset 'tabspaces-command-map tabspaces-command-map)
