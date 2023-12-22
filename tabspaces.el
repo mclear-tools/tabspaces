@@ -98,7 +98,7 @@ which does not override buffers inside `tabspaces-include-buffers'."
   :type 'string)
 
 (defcustom tabspaces-initialize-project-with-todo t
-  "Non-nil means to create a `tabspaces-todo-file-name' file in the project
+  "When Non-nil create a `tabspaces-todo-file-name' file in the project
 when creating a workspace for it."
   :group 'tabspaces
   :type 'boolean)
@@ -132,23 +132,19 @@ Only the current window buffers and buffers in
                        (let ((window-buffers (mapcar #'window-buffer (window-list))))
                          (seq-filter (lambda (buffer)
                                        (or (member buffer window-buffers)
-                                           (member (buffer-name buffer)
-                                                   tabspaces-include-buffers)
-                                           (not (member (buffer-name buffer)
-                                                        tabspaces-exclude-buffers))))
+                                           (and (member (buffer-name buffer)
+                                                        tabspaces-include-buffers)
+                                                (not (member (buffer-name buffer)
+                                                             tabspaces-exclude-buffers)))))
                                      (frame-parameter nil 'buffer-list))))
   (set-frame-parameter nil
                        'buried-buffer-list
                        (seq-filter (lambda (buffer)
-                                     (or (member (buffer-name buffer)
-                                                 tabspaces-include-buffers)
-                                         (not (member (buffer-name buffer)
-                                                      tabspaces-exclude-buffers))))
+                                     (and (member (buffer-name buffer)
+                                                  tabspaces-include-buffers)
+                                          (not (member (buffer-name buffer)
+                                                       tabspaces-exclude-buffers))))
                                    (frame-parameter nil 'buried-buffer-list))))
-
-(defun tabspaces--tab-post-open-function (_tab)
-  "Reset buffer list on new tab creation."
-  (tabspaces-reset-buffer-list))
 
 ;;;; Filter Workspace Buffers
 
