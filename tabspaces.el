@@ -146,6 +146,10 @@ Only the current window buffers and buffers in
                                                        tabspaces-exclude-buffers))))
                                    (frame-parameter nil 'buried-buffer-list))))
 
+(defun tabspaces--tab-post-open-function (_tab)
+  "Reset buffer list on new tab creation."
+  (tabspaces-reset-buffer-list))
+
 ;;;; Filter Workspace Buffers
 
 (defun tabspaces--local-buffer-p (buffer)
