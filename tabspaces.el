@@ -420,6 +420,7 @@ with a `project.todo' file, in its own workspace."
    (list (project-prompt-project-dir) current-prefix-arg))
   ;; Set vars
   (let* ((project-switch-commands tabspaces-project-switch-commands)
+         (project (expand-file-name project)) ; resolve ".", "..", etc. in path
          (project-root-name (file-name-nondirectory (directory-file-name project)))
          (project-directory (file-name-directory project))
          (existing-tab-names (tabspaces--list-tabspaces))
