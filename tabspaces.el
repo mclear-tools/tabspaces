@@ -412,8 +412,9 @@ If FRAME is nil, use the current frame."
 (defun tabspaces-open-or-create-project-and-workspace (&optional project prefix)
   "Open PROJECT from `project--list' in its own workspace.
 If PROJECT is already open in its own workspace, switch to that
-workspace. If PROJECT does not exist, create it, along with a
-`project.todo' file, in its own workspace."
+workspace. If PROJECT does not exist in tabspaces, and the directory
+contents of PROJECT do not look like a project either, create it, along
+with a `project.todo' file, in its own workspace."
   ;; Select project from completing-read
   (interactive
    (list (project-prompt-project-dir) current-prefix-arg))
@@ -425,22 +426,28 @@ workspace. If PROJECT does not exist, create it, along with a
          (tab-name (if (and (member project-root-name existing-tab-names) prefix)
                        (tabspaces--generate-unique-tab-name project-root-name existing-tab-names)
                      project-root-name))
-         (session (concat project "." project-root-name "-tabspaces-session.el")))
+         (session (concat project "." project-root-name "-tabspaces-session.el"))
+         (directory-with-potential-project-content (project--find-in-directory project-directory)))
     ;; Set conditions:
     (cond
      ;; 1. if project & tab exist then switch to it
      ((and (member (list project) project--list)
            (member tab-name existing-tab-names))
       (tab-bar-switch-to-tab tab-name))
-     ;; 2. if project but not tab exists open tabspace & check for session to restore, otherwise start session
-     ((and (member (list project) project--list)
+     ;; 2. if project exists, or a directory with actual project contents, but no
+     ;; corresponding tab, open tabspace & check for session to restore, otherwise
+     ;; start session
+     ((and (or (member (list project) project--list)
+               directory-with-potential-project-content)
            (not (member tab-name existing-tab-names)))
       (tab-bar-new-tab)
       (tab-bar-rename-tab tab-name)
       (let ((default-directory project-directory))
         (if (file-exists-p session)
             (tabspaces-restore-session session)
-          (project-switch-project project))))
+          (project-switch-project project))
+        (unless (member (list project) project--list)
+          (project-remember-project directory-with-potential-project-content))))
      ;; 3. Open new tab and create project
      (t
       (tab-bar-new-tab)
