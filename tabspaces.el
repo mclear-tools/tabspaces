@@ -116,6 +116,11 @@ the value of `project-switch-commands'."
   :group 'tabspaces
   :type 'sexp)
 
+(defcustom tabspaces-fully-resolve-paths nil
+  "Resolve \".\", \"..\", etc. in project paths."
+  :group 'tabspaces
+  :type 'boolean)
+
 ;;;; Create Buffer Workspace
 
 (defun tabspaces-reset-buffer-list ()
@@ -420,7 +425,9 @@ with a `project.todo' file, in its own workspace."
    (list (project-prompt-project-dir) current-prefix-arg))
   ;; Set vars
   (let* ((project-switch-commands tabspaces-project-switch-commands)
-         (project (expand-file-name project)) ; resolve ".", "..", etc. in path
+         (project (if tabspaces-fully-resolve-paths
+                      (expand-file-name project) ; resolve ".", "..", etc. in path
+                    project))
          (project-root-name (file-name-nondirectory (directory-file-name project)))
          (project-directory (file-name-directory project))
          (existing-tab-names (tabspaces--list-tabspaces))
