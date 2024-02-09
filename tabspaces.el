@@ -256,6 +256,39 @@ to the selected directory DIR."
 
 ;;;;; Buffer Functions
 
+(defun tabspaces-remove-buffer (&optional buffer)
+  "Bury and remove BUFFER from current tabspace.
+ If BUFFER is nil, remove current buffer.  If
+ `tabspaces-remove-to-default' is t then add the buffer to the
+ default tabspace after remove."
+  (let ((buffer (get-buffer (or buffer (current-buffer))))
+        (buffer-list (frame-parameter nil 'buffer-list)))
+    ;; delete window of buffer
+    (cond
+     ((eq buffer (window-buffer (selected-window)))
+      (if (one-window-p t)
+          (bury-buffer)
+        (delete-window)))
+     ((get-buffer-window buffer)
+      (select-window (get-buffer-window buffer) t)
+      (if (one-window-p t)
+          (bury-buffer)
+        (delete-window)))
+     (t
+      (message (format "Buffer `%s' removed from `%s' tabspace."
+                       buffer (tabspaces--current-tab-name)))))
+    (bury-buffer buffer)
+    ;; Delete buffer from tabspace buffer list
+    (delete buffer buffer-list)
+    ;; If specified, add the buffer to the default tabspace.
+    (when tabspaces-remove-to-default
+      (tabspaces--add-to-default-tabspace buffer))))
+
+(defun tabspaces-remove-current-buffer ()
+  "Bury and remove current buffer from current tabspace."
+  (interactive)
+  (tabspaces-remove-buffer))
+
 (defun tabspaces-remove-selected-buffer (buffer)
   "Remove selected BUFFER from the frame's buffer list.
 If `tabspaces-remove-to-default' is t then add the buffer to the
@@ -265,33 +298,11 @@ default tabspace."
     (let ((blst (mapcar (lambda (b) (buffer-name b))
                         (tabspaces--buffer-list))))
       ;; select buffer
-      (read-buffer "Remove buffer from tabspace: " nil t
+      (read-buffer (format "Remove buffer from `%s' tabspace: "
+                           (tabspaces--current-tab-name))
+                   nil t
                    (lambda (b) (member (car b) blst))))))
-  ;; delete window of buffer
-  (cond ((eq buffer (window-buffer (selected-window)))
-         (if (one-window-p t)
-             (bury-buffer)
-           (delete-window)))
-        ((get-buffer-window buffer)
-         (select-window (get-buffer-window buffer) t)
-         (if (one-window-p t)
-             (bury-buffer)
-           (delete-window)))
-        (t
-         (message "buffer removed from tabspace")))
-  ;; delete buffer from tabspace buffer list
-  (delete (get-buffer buffer) (frame-parameter nil 'buffer-list))
-  ;; add buffer to default tabspace
-  (tabspaces--add-to-default-tabspace buffer))
-
-(defun tabspaces-remove-current-buffer (&optional buffer-or-name)
-    "Bury and remove current buffer BUFFER-OR-NAME from the tabspace list.
-If `tabspaces-remove-to-default' is t then add the buffer to the
-default tabspace."
-  (let ((buffer (or buffer-or-name (current-buffer))))
-    (delete (frame-parameter nil 'buffer-list) (get-buffer buffer))
-    (bury-buffer buffer-or-name)
-    (tabspaces--add-to-default-tabspace buffer)))
+  (tabspaces-remove-buffer buffer))
 
 (defun tabspaces-switch-to-buffer (buffer &optional norecord force-same-window)
   "Display the local buffer BUFFER in the selected window.
