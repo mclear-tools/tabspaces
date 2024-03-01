@@ -159,7 +159,8 @@ Only the current window buffers and buffers in
 
 (defun tabspaces--local-buffer-p (buffer)
   "Return whether BUFFER is in the list of local buffers."
-  (memq buffer (frame-parameter nil 'buffer-list)))
+  (or (member (buffer-name buffer) tabspaces-include-buffers)
+      (memq buffer (frame-parameter nil 'buffer-list))))
 
 (defun tabspaces--set-buffer-predicate (frame)
   "Set the buffer predicate of FRAME to `tabspaces--local-buffer-p'."
