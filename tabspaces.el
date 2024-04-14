@@ -414,7 +414,10 @@ If FRAME is nil, use the current frame."
       (tab-bar-close-tab))))
 
 ;;;;; Open or Create Project in Workspace
-;;;###autoload
+
+(defvar tabspaces-project-tab-map '()
+  "Alist mapping full project paths to their respective tab names.")
+
 (defun tabspaces--generate-unique-tab-name (base-name existing-names)
   "Generate a unique tab name based on BASE-NAME and the list of EXISTING-NAMES."
   (let ((new-name base-name)
@@ -424,27 +427,30 @@ If FRAME is nil, use the current frame."
       (setq count (1+ count)))
     new-name))
 
+
 ;;;###autoload
+(defun tabspaces-update-tab-name (project-path project-root-name existing-tab-names)
+  "Update the tab name using the project path to handle conflicts."
+  (let ((original-tab-name (cdr (assoc project-path tabspaces-project-tab-map))))
+    (if original-tab-name
+        original-tab-name
+      (let ((new-tab-name (if (member project-root-name existing-tab-names)
+                              (tabspaces--generate-unique-tab-name project-root-name existing-tab-names)
+                            project-root-name)))
+        (add-to-list 'tabspaces-project-tab-map (cons project-path new-tab-name))
+        new-tab-name))))
+
 (defun tabspaces-open-or-create-project-and-workspace (&optional project prefix)
-  "Open PROJECT from `project--list' in its own workspace.
-If PROJECT is already open in its own workspace, switch to that
-workspace. If PROJECT does not exist in tabspaces, and the directory
-contents of PROJECT do not look like a project either, create it, along
-with a `project.todo' file, in its own workspace."
-  ;; Select project from completing-read
+  "Revised version that considers full project paths when generating tab names."
   (interactive
    (list (project-prompt-project-dir) current-prefix-arg))
-  ;; Set vars
-  (let* ((project-switch-commands tabspaces-project-switch-commands)
-         (project (if tabspaces-fully-resolve-paths
-                      (expand-file-name project) ; resolve ".", "..", etc. in path
+  (let* ((project (if tabspaces-fully-resolve-paths
+                      (expand-file-name project) ; Resolve relative paths
                     project))
          (project-root-name (file-name-nondirectory (directory-file-name project)))
          (project-directory (file-name-directory project))
          (existing-tab-names (tabspaces--list-tabspaces))
-         (tab-name (if (and (member project-root-name existing-tab-names) prefix)
-                       (tabspaces--generate-unique-tab-name project-root-name existing-tab-names)
-                     project-root-name))
+         (tab-name (tabspaces-update-tab-name project project-root-name existing-tab-names))
          (session (concat project "." project-root-name "-tabspaces-session.el"))
          (directory-with-potential-project-content (project--find-in-directory project-directory)))
     ;; Set conditions:
@@ -487,6 +493,71 @@ with a `project.todo' file, in its own workspace."
       ;; make sure project.el remembers new project
       (let ((pr (project--find-in-directory default-directory)))
         (project-remember-project pr))))))
+
+
+;; ;;;###autoload
+;; (defun tabspaces-open-or-create-project-and-workspace (&optional project prefix)
+;;   "Open PROJECT from `project--list' in its own workspace.
+;; If PROJECT is already open in its own workspace, switch to that
+;; workspace. If PROJECT does not exist in tabspaces, and the directory
+;; contents of PROJECT do not look like a project either, create it, along
+;; with a `project.todo' file, in its own workspace."
+;;   ;; Select project from completing-read
+;;   (interactive
+;;    (list (project-prompt-project-dir) current-prefix-arg))
+;;   ;; Set vars
+;;   (let* ((project-switch-commands tabspaces-project-switch-commands)
+;;          (project (if tabspaces-fully-resolve-paths
+;;                       (expand-file-name project) ; resolve ".", "..", etc. in path
+;;                     project))
+;;          (project-root-name (file-name-nondirectory (directory-file-name project)))
+;;          (project-directory (file-name-directory project))
+;;          (existing-tab-names (tabspaces--list-tabspaces))
+;;          (tab-name (if (and (member project-root-name existing-tab-names) prefix)
+;;                        (tabspaces--generate-unique-tab-name project-root-name existing-tab-names)
+;;                      project-root-name))
+;;          (session (concat project "." project-root-name "-tabspaces-session.el"))
+;;          (directory-with-potential-project-content (project--find-in-directory project-directory)))
+;;     ;; Set conditions:
+;;     (cond
+;;      ;; 1. if project & tab exist then switch to it
+;;      ((and (member (list project) project--list)
+;;            (member tab-name existing-tab-names))
+;;       (tab-bar-switch-to-tab tab-name))
+;;      ;; 2. if project exists, or a directory with actual project contents, but no
+;;      ;; corresponding tab, open tabspace & check for session to restore, otherwise
+;;      ;; start session
+;;      ((and (or (member (list project) project--list)
+;;                directory-with-potential-project-content)
+;;            (not (member tab-name existing-tab-names)))
+;;       (tab-bar-new-tab)
+;;       (tab-bar-rename-tab tab-name)
+;;       (let ((default-directory project-directory))
+;;         (if (file-exists-p session)
+;;             (tabspaces-restore-session session)
+;;           (project-switch-project project))
+;;         (unless (member (list project) project--list)
+;;           (project-remember-project directory-with-potential-project-content))))
+;;      ;; 3. Open new tab and create project
+;;      (t
+;;       (tab-bar-new-tab)
+;;       (setq default-directory project-directory)
+;;       (ignore-errors (mkdir project-directory t))
+;;       (if (featurep 'magit)
+;;           (magit-init project-directory)
+;;         (call-interactively #'vc-create-repo))
+;;       (delete-other-windows)
+;;       (when (and tabspaces-initialize-project-with-todo
+;;                  (not (file-exists-p tabspaces-todo-file-name)))
+;;         (with-temp-buffer (write-file tabspaces-todo-file-name)))
+;;       (if (featurep 'magit)
+;;           (magit-status-setup-buffer)
+;;         (project-vc-dir))
+;;       (dired-jump-other-window)
+;;       (tab-bar-rename-tab tab-name)
+;;       ;; make sure project.el remembers new project
+;;       (let ((pr (project--find-in-directory default-directory)))
+;;         (project-remember-project pr))))))
 
 ;;;; Tabspace Sessions
 
