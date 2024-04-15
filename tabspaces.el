@@ -415,51 +415,75 @@ If FRAME is nil, use the current frame."
       (tab-bar-close-tab))))
 
 ;;;;; Open or Create Project in Workspace
-;;;###autoload
-(defun tabspaces--generate-unique-tab-name (base-name existing-names)
-  "Generate a unique tab name based on BASE-NAME and the list of EXISTING-NAMES."
-  (let ((new-name base-name)
-        (count 1))
-    (while (member new-name existing-names)
-      (setq new-name (format "%s<%d>" base-name count))
-      (setq count (1+ count)))
-    new-name))
+
+(defvar tabspaces-project-tab-map '()
+  "Alist mapping full project paths to their respective tab names.")
+
+(defun tabspaces-rename-existing-tab (old-name new-name)
+  "Rename an existing tab from OLD-NAME to NEW-NAME."
+  (let ((tabs (tab-bar-tabs)))
+    (dolist (tab tabs)
+      (when (equal (alist-get 'name tab) old-name)
+        (tab-bar-rename-tab-by-name old-name new-name)))))
+
+(defun tabspaces-generate-descriptive-tab-name (project-path existing-tab-names)
+  "Generate a unique tab name from the PROJECT-PATH checking against EXISTING-TAB-NAMES."
+  (let* ((parts (reverse (split-string (directory-file-name project-path) "/")))
+         (base-name (car parts))
+         (parent-dir (nth 1 parts))
+         (grandparent-dir (nth 2 parts))
+         (simple-tab-name base-name)
+         (complex-tab-name (if parent-dir
+                               (format "%s (%s/%s)" base-name (or grandparent-dir "") parent-dir)
+                             base-name)))
+    (if (member simple-tab-name existing-tab-names)
+        (let ((existing-path (rassoc simple-tab-name tabspaces-project-tab-map)))
+          (when existing-path
+            ;; Generate a new complex name for the existing conflict
+            (let ((new-name-for-existing (tabspaces-generate-complex-name (car existing-path))))
+              ;; Rename the existing tab
+              (tabspaces-rename-existing-tab simple-tab-name new-name-for-existing)
+              ;; Update the map with the new name for the existing path
+              (setcdr existing-path new-name-for-existing)))
+          ;; Use the complex name for the new tab to avoid future conflicts
+          complex-tab-name)
+      ;; No conflict, add to map and use the simple name
+      (progn
+        (add-to-list 'tabspaces-project-tab-map (cons project-path simple-tab-name))
+        simple-tab-name))))
+
+(defun tabspaces-generate-complex-name (project-path)
+  "Generate a complex name based on the grandparent and parent directory names."
+  (let* ((parts (reverse (split-string (directory-file-name project-path) "/")))
+         (base-name (car parts))
+         (parent-dir (nth 1 parts))
+         (grandparent-dir (nth 2 parts)))
+    (format "%s (%s/%s)" base-name (or grandparent-dir "") parent-dir)))
 
 ;;;###autoload
 (defun tabspaces-open-or-create-project-and-workspace (&optional project prefix)
-  "Open PROJECT from `project--list' in its own workspace.
-If PROJECT is already open in its own workspace, switch to that
-workspace. If PROJECT does not exist in tabspaces, and the directory
-contents of PROJECT do not look like a project either, create it, along
-with a `project.todo' file, in its own workspace."
-  ;; Select project from completing-read
+  "Open or create a project and its workspace with a descriptive tab name."
   (interactive
    (list (project-prompt-project-dir) current-prefix-arg))
-  ;; Set vars
   (let* ((project-switch-commands tabspaces-project-switch-commands)
          (project (if tabspaces-fully-resolve-paths
-                      (expand-file-name project) ; resolve ".", "..", etc. in path
+                      (expand-file-name project)  ; Resolve relative paths
                     project))
-         (project-root-name (file-name-nondirectory (directory-file-name project)))
-         (project-directory (file-name-directory project))
          (existing-tab-names (tabspaces--list-tabspaces))
-         (tab-name (if (and (member project-root-name existing-tab-names) prefix)
-                       (tabspaces--generate-unique-tab-name project-root-name existing-tab-names)
-                     project-root-name))
-         (session (concat project "." project-root-name "-tabspaces-session.el"))
+         (tab-name (tabspaces-generate-descriptive-tab-name project existing-tab-names))
+         (session (concat project "." (file-name-nondirectory (directory-file-name project)) "-tabspaces-session.el"))
+         (project-directory (file-name-directory project))
          (directory-with-potential-project-content (project--find-in-directory project-directory)))
-    ;; Set conditions:
+    ;; Now manage the workspace based on the project state:
     (cond
-     ;; 1. if project & tab exist then switch to it
      ((and (member (list project) project--list)
            (member tab-name existing-tab-names))
+      ;; If project and tab exist, switch to it
       (tab-bar-switch-to-tab tab-name))
-     ;; 2. if project exists, or a directory with actual project contents, but no
-     ;; corresponding tab, open tabspace & check for session to restore, otherwise
-     ;; start session
      ((and (or (member (list project) project--list)
                directory-with-potential-project-content)
            (not (member tab-name existing-tab-names)))
+      ;; If project exists, but no corresponding tab, open a new tab
       (tab-bar-new-tab)
       (tab-bar-rename-tab tab-name)
       (let ((default-directory project-directory))
@@ -468,8 +492,8 @@ with a `project.todo' file, in its own workspace."
           (project-switch-project project))
         (unless (member (list project) project--list)
           (project-remember-project directory-with-potential-project-content))))
-     ;; 3. Open new tab and create project
      (t
+      ;; Open new tab and create project
       (tab-bar-new-tab)
       (setq default-directory project-directory)
       (ignore-errors (mkdir project-directory t))
@@ -485,7 +509,7 @@ with a `project.todo' file, in its own workspace."
         (project-vc-dir))
       (dired-jump-other-window)
       (tab-bar-rename-tab tab-name)
-      ;; make sure project.el remembers new project
+      ;; Make sure project.el remembers new project
       (let ((pr (project--find-in-directory default-directory)))
         (project-remember-project pr))))))
 
