@@ -418,15 +418,12 @@ If FRAME is nil, use the current frame."
 (defvar tabspaces-project-tab-map '()
   "Alist mapping full project paths to their respective tab names.")
 
-;; (defun tabspaces-generate-descriptive-tab-name (project-path)
-;;   "Generate a descriptive tab name from the PROJECT-PATH."
-;;   (let* ((parts (reverse (split-string (directory-file-name project-path) "/")))
-;;          (base-name (car parts))  ; The actual name of the final directory
-;;          (parent-dir (nth 1 parts))  ; Parent directory name
-;;          (grandparent-dir (nth 2 parts))) ; Grandparent directory name
-;;     (if parent-dir
-;;         (format "%s (%s/%s)" base-name (or grandparent-dir "") parent-dir)
-;;       base-name)))
+(defun tabspaces-rename-existing-tab (old-name new-name)
+  "Rename an existing tab from OLD-NAME to NEW-NAME."
+  (let ((tabs (tab-bar-tabs)))
+    (dolist (tab tabs)
+      (when (equal (alist-get 'name tab) old-name)
+        (tab-bar-rename-tab-by-name old-name new-name)))))
 
 (defun tabspaces-generate-descriptive-tab-name (project-path existing-tab-names)
   "Generate a unique tab name from the PROJECT-PATH checking against EXISTING-TAB-NAMES."
@@ -438,11 +435,29 @@ If FRAME is nil, use the current frame."
          (complex-tab-name (if parent-dir
                                (format "%s (%s/%s)" base-name (or grandparent-dir "") parent-dir)
                              base-name)))
-    ;; Check if the simple base name is already used, and if so, use the complex name
     (if (member simple-tab-name existing-tab-names)
-        complex-tab-name
-      simple-tab-name)))
+        (let ((existing-path (rassoc simple-tab-name tabspaces-project-tab-map)))
+          (when existing-path
+            ;; Generate a new complex name for the existing conflict
+            (let ((new-name-for-existing (tabspaces-generate-complex-name (car existing-path))))
+              ;; Rename the existing tab
+              (tabspaces-rename-existing-tab simple-tab-name new-name-for-existing)
+              ;; Update the map with the new name for the existing path
+              (setcdr existing-path new-name-for-existing)))
+          ;; Use the complex name for the new tab to avoid future conflicts
+          complex-tab-name)
+      ;; No conflict, add to map and use the simple name
+      (progn
+        (add-to-list 'tabspaces-project-tab-map (cons project-path simple-tab-name))
+        simple-tab-name))))
 
+(defun tabspaces-generate-complex-name (project-path)
+  "Generate a complex name based on the grandparent and parent directory names."
+  (let* ((parts (reverse (split-string (directory-file-name project-path) "/")))
+         (base-name (car parts))
+         (parent-dir (nth 1 parts))
+         (grandparent-dir (nth 2 parts)))
+    (format "%s (%s/%s)" base-name (or grandparent-dir "") parent-dir)))
 
 ;;;###autoload
 (defun tabspaces-open-or-create-project-and-workspace (&optional project prefix)
