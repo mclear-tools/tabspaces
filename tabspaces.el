@@ -615,11 +615,21 @@ If FRAME is nil, use the current frame."
   ;; Finally, kill the temporary buffer to clean up.
   (kill-buffer "*tabspaces--placeholder*"))
 
+;; Make sure session file exists
+(defun tabspaces--create-session-file ()
+  "Create the tabspaces session file if it does not exist."
+  (unless (file-exists-p tabspaces-session-file)
+    (with-temp-buffer
+      (write-file tabspaces-session-file))
+    (message "Created tabspaces session file: %s" tabspaces-session-file)))
+
 ;; Restore session used for startup
 (defun tabspaces--restore-session-on-startup ()
   "Restore tabspaces session on startup.
 Unlike the interactive restore, this function does more clean up to remove
 unnecessary tab."
+  (message "Restoring tabspaces session on startup.")
+  (tabspaces--create-session-file)
   (load-file tabspaces-session-file)
   ;; Start looping through the session list, but ensure to start from a
   ;; temporary buffer "*tabspaces--placeholder*" in order not to pollute the
@@ -690,7 +700,7 @@ This uses Emacs `tab-bar' and `project.el'."
          (when tabspaces-session
            (add-hook 'kill-emacs-hook #'tabspaces-save-session))
          (when tabspaces-session-auto-restore
-           (add-hook 'emacs-startup-hook #'tabspaces--restore-session-on-startup)))
+           (tabspaces--restore-session-on-startup)))
         (t
          ;; Remove all modifications
          (dolist (frame (frame-list))
