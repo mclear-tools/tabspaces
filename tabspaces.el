@@ -470,7 +470,8 @@ If FRAME is nil, use the current frame."
                       (expand-file-name project)  ; Resolve relative paths
                     project))
          (existing-tab-names (tabspaces--list-tabspaces))
-         (tab-name (tabspaces-generate-descriptive-tab-name project existing-tab-names))
+         (tab-name (or (cdr (assoc project tabspaces-project-tab-map)) ; look up if project already associated with tab name
+                       (tabspaces-generate-descriptive-tab-name project existing-tab-names))) ; before generating new name
          (session (concat project "." (file-name-nondirectory (directory-file-name project)) "-tabspaces-session.el"))
          (project-directory (file-name-directory project))
          (directory-with-potential-project-content (project--find-in-directory project-directory)))
