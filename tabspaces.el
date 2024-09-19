@@ -153,6 +153,8 @@ Only the current window buffers and buffers in
 
 (defun tabspaces--tab-post-open-function (_tab)
   "Reset buffer list on new tab creation."
+  ;; avoid copying over the currently visible buffer by switching to *scratch*
+  (switch-to-buffer "*scratch*")
   (tabspaces-reset-buffer-list))
 
 ;;;; Filter Workspace Buffers
