@@ -460,61 +460,131 @@ If FRAME is nil, use the current frame."
          (grandparent-dir (nth 2 parts)))
     (format "%s (%s/%s)" base-name (or grandparent-dir "") parent-dir)))
 
+;; Function to generate a unique numbered tab name
+(defun generate-unique-numbered-tab-name (base-name existing-names)
+  (let ((counter 2)
+        (new-name base-name))
+    (while (member new-name existing-names)
+      (setq new-name (format "%s<%d>" base-name counter)
+            counter (1+ counter)))
+    new-name))
+
+;; Replace read-directory-name so that we can create new projects when necessary
+(defun tabspaces--read-directory-name (prompt &optional dir default mustmatch)
+  "Read a directory name, and create it if it does not exist."
+  (let ((dir-name (read-directory-name prompt dir default mustmatch)))
+    (unless (file-directory-p dir-name)
+      (when (y-or-n-p (format "Directory %s does not exist. Create it?" dir-name))
+        (make-directory dir-name t)))
+    dir-name))
+
+
+;; Replace project-prompt-project-dir for project creation
+(defun tabspaces-prompt-project-dir ()
+  "Prompt the user for a directory that is one of the known project roots.
+The project is chosen among projects known from the project list,
+see `project-list-file'.
+It's also possible to enter an arbitrary directory not in the list."
+  (project--ensure-read-project-list)
+  (let* ((dir-choice "... (choose a dir)")
+         (choices
+          ;; XXX: Just using this for the category (for the substring
+          ;; completion style).
+          (project--file-completion-table
+           (append project--list `(,dir-choice))))
+         (pr-dir ""))
+    (while (equal pr-dir "")
+      ;; If the user simply pressed RET, do this again until they don't.
+      (setq pr-dir (completing-read "Select project: " choices nil t)))
+    (if (equal pr-dir dir-choice)
+        (tabspaces--read-directory-name "Select directory: " nil nil nil)
+      pr-dir)))
+
 ;;;###autoload
 (defun tabspaces-open-or-create-project-and-workspace (&optional project prefix)
-  "Open or create a project and its workspace with a descriptive tab name."
+  "Open or create a project and its workspace with a descriptive tab name.
+With universal argument PREFIX, always create a new tab for the project."
   (interactive
-   (list (project-prompt-project-dir) current-prefix-arg))
+   (list (tabspaces-prompt-project-dir) current-prefix-arg))
   (let* ((project-switch-commands tabspaces-project-switch-commands)
          (project (if tabspaces-fully-resolve-paths
                       (expand-file-name project)  ; Resolve relative paths
                     project))
          (existing-tab-names (tabspaces--list-tabspaces))
-         (tab-name (tabspaces-generate-descriptive-tab-name project existing-tab-names))
+         (original-tab-name (or (cdr (assoc project tabspaces-project-tab-map))
+                                (tabspaces-generate-descriptive-tab-name project existing-tab-names)))
+         (tab-name original-tab-name)
          (session (concat project "." (file-name-nondirectory (directory-file-name project)) "-tabspaces-session.el"))
-         (project-directory (file-name-directory project))
-         (directory-with-potential-project-content (project--find-in-directory project-directory)))
+         (project-directory project)  ; Use the full path as the project directory
+         (project-exists (member (list project) project--list))
+         (create-new-tab (or prefix (not (member tab-name existing-tab-names)))))
+
+    (message "Tabspaces: Project directory: %s" project-directory)
+
     ;; Now manage the workspace based on the project state:
     (cond
-     ((and (member (list project) project--list)
-           (member tab-name existing-tab-names))
-      ;; If project and tab exist, switch to it
-      (tab-bar-switch-to-tab tab-name))
-     ((and (or (member (list project) project--list)
-               directory-with-potential-project-content)
-           (not (member tab-name existing-tab-names)))
-      ;; If project exists, but no corresponding tab, open a new tab
+     ;; If there is no tab nor project, create both
+     ((not project-exists)
+      (message "Tabspaces - Creating new project and tab")
       (tab-bar-new-tab)
       (tab-bar-rename-tab tab-name)
       (let ((default-directory project-directory))
-        (if (file-exists-p session)
-            (tabspaces-restore-session session)
-          (project-switch-project project))
-        (unless (member (list project) project--list)
-          (project-remember-project directory-with-potential-project-content))))
-     (t
-      ;; Open new tab and create project
-      (tab-bar-new-tab)
-      (setq default-directory project-directory)
-      (ignore-errors (mkdir project-directory t))
-      (if (featurep 'magit)
-          (magit-init project-directory)
-        (call-interactively #'vc-create-repo))
-      (delete-other-windows)
-      (when (and tabspaces-initialize-project-with-todo
-                 (not (file-exists-p tabspaces-todo-file-name)))
-        (with-temp-buffer (write-file tabspaces-todo-file-name)))
-      (if (featurep 'magit)
-          (magit-status-setup-buffer)
-        (project-vc-dir))
-      (dired-jump-other-window)
-      (tab-bar-rename-tab tab-name)
-      ;; Make sure project.el remembers new project
+        (message "Tabspaces: default directory set to %s" default-directory)
+        (if (featurep 'magit)
+            (magit-init project-directory)
+          (call-interactively #'vc-create-repo))
+        (delete-other-windows)
+        (when (and tabspaces-initialize-project-with-todo
+                   (not (file-exists-p (expand-file-name tabspaces-todo-file-name project-directory))))
+          (with-temp-buffer
+            (write-file (expand-file-name tabspaces-todo-file-name project-directory))))
+        (if (featurep 'magit)
+            (magit-status-setup-buffer project-directory)
+          (project-vc-dir))
+        (dired-jump-other-window))
+      ;; Remember new project
       (let ((pr (project--find-in-directory default-directory)))
-        (project-remember-project pr))))))
+        (project-remember-project pr)))
+
+     ;; If project and tab exist, but we want a new tab
+     ((and project-exists
+           (member tab-name existing-tab-names)
+           create-new-tab)
+      (message "Tabspaces - Creating new tab for existing project and tab")
+      (let ((new-tab-name (generate-unique-numbered-tab-name tab-name existing-tab-names)))
+        (tab-bar-new-tab)
+        (tab-bar-rename-tab new-tab-name)
+        (setq tab-name new-tab-name))
+      (project-switch-project project))
+
+     ;; If project and tab exist, switch to it
+     ((and project-exists
+           (member tab-name existing-tab-names))
+      (message "Tabspaces - Switching to existing tab")
+      (tab-bar-switch-to-tab tab-name))
+
+     ;; If project exists, but no corresponding tab, open a new tab
+     (project-exists
+      (message "Tabspaces - Creating new tab for existing project")
+      (tab-bar-new-tab)
+      (tab-bar-rename-tab tab-name)
+      (if (file-exists-p session)
+          (tabspaces-restore-session session)
+        (project-switch-project project)))
+
+     (t
+      (message "Tabspaces - No project found or created.")
+      nil))
+
+    (message "Tabspaces: Conditional execution completed")
+
+    ;; Update tabspaces-project-tab-map (only for the main tab, not numbered duplicates)
+    (unless (string-match-p "<[0-9]+>$" tab-name)
+      (setq tabspaces-project-tab-map
+            (cons (cons project-directory tab-name)
+                  (assq-delete-all project-directory tabspaces-project-tab-map))))))
 
 ;;;; Tabspace Sessions
-
 (defconst tabspaces-session-header
   ";; -------------------------------------------------------------------------
 ;; Tabspaces Session File for Emacs

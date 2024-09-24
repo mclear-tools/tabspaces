@@ -131,6 +131,37 @@ workspace. For use with =consult-buffer=, see below.
 
 Sometimes the user may wish to switch to some open buffer in a tabspace and switch to that tab as well. Use =(=tabspaces-switch-buffer-and-tab=) to achieve this. If the buffer is open in more than one tabspace the user will be prompted to choose which tab to switch to. If there is no such buffer user will be prompted on whether to create it in a new tabspace or the current one.
 
+*** Tabs & Projects
+
+The =tabspaces-open-or-create-project-and-workspace= function provides a
+versatile way to manage projects and their associated workspaces in
+Emacs. Here's what you can do with it:
+
+1. *Open Existing Projects*: Open an existing version-controlled project
+   in its own workspace. The function will switch to the project's tab
+   if it already exists.
+
+2. *Create New Projects*: If no such project exists at the specified
+   path, it will create one in its own workspace for you, initializing
+   version control (git or other VCS) in the process.
+
+3. *Descriptive Tab Naming*:
+
+    - Tabs are named descriptively based on the project structure.
+    - In case of naming conflicts, it intelligently renames tabs to avoid
+      confusion.
+     
+4. *Multiple Tabs for the Same Project*:
+
+    - By using a universal argument (C-u) before calling the function,
+      you can force the creation of a new tab even for already open project tabs.
+    - The first tab will have the original project name.
+    - Subsequent tabs will be automatically named with incrementing
+      numbers (e.g., "ProjectName<2>", "ProjectName<3>").     
+    - This is useful when you want to work on different aspects of the
+      same project in separate workspaces.
+
+
 *** Persistent Tabspaces
 
 Rudimentary support for saving tabspaces across sessions has been implemented.
