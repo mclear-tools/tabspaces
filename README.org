@@ -92,9 +92,11 @@ Here's one possible way of setting up the package using [[https://github.com/jwi
   (tabspaces-todo-file-name "project-todo.org")
   ;; sessions
   (tabspaces-session t)
-  (tabspaces-session-auto-restore t))
-  
+  (tabspaces-session-auto-restore t)
+  (tab-bar-new-tab-choice "*scratch*"))
 #+end_src
+
+Note the inclusion of the `tab-bar` setting, which is built-in to Emacs and allows a number of different options for what buffer to set for a newly created tab. 
 
 *** Keybindings 
 Workspace Keybindings are defined in the following variable:
