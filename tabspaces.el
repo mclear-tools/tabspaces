@@ -360,7 +360,7 @@ tab."
            dupe)
       (dolist (tab (tabspaces--list-tabspaces) tabcand)
         (when (member buffer (mapcar #'buffer-name (tabspaces--buffer-list nil (tab-bar--tab-index-by-name tab))))
-          (push tabcand tab)))
+          (push tab tabcand)))
       (progn
         (tab-bar-switch-to-tab (completing-read "Select tab: " tabcand))
         (tabspaces-switch-to-buffer buffer)))
