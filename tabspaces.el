@@ -259,11 +259,13 @@ to the selected directory DIR."
 
 (defun tabspaces-remove-buffer (&optional buffer)
   "Bury and remove BUFFER from current tabspace.
- If BUFFER is nil, remove current buffer.  If
- `tabspaces-remove-to-default' is t then add the buffer to the
- default tabspace after remove."
-  (let ((buffer (get-buffer (or buffer (current-buffer))))
-        (buffer-list (frame-parameter nil 'buffer-list)))
+If BUFFER is nil, remove current buffer. If
+`tabspaces-remove-to-default' is t then add the buffer to the
+default tabspace after remove, unless we're already in the default tabspace, in which case remove from the default as well."
+  (let* ((buffer (get-buffer (or buffer (current-buffer))))
+         (buffer-list (frame-parameter nil 'buffer-list))
+         (in-default-tab (string= (tabspaces--current-tab-name)
+                                  tabspaces-default-tab)))
     ;; delete window of buffer
     (cond
      ((eq buffer (window-buffer (selected-window)))
@@ -281,8 +283,8 @@ to the selected directory DIR."
     (bury-buffer buffer)
     ;; Delete buffer from tabspace buffer list
     (delete buffer buffer-list)
-    ;; If specified, add the buffer to the default tabspace.
-    (when tabspaces-remove-to-default
+    ;; If specified AND we're not in default tab, add buffer to default tabspace
+    (when (and tabspaces-remove-to-default (not in-default-tab))
       (tabspaces--add-to-default-tabspace buffer))))
 
 (defun tabspaces-remove-current-buffer ()
