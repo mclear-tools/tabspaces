@@ -166,14 +166,95 @@ Emacs. Here's what you can do with it:
 
 *** Persistent Tabspaces
 
-Rudimentary support for saving tabspaces across sessions has been implemented.
-Setting =tabspaces-session= to =t= ensures that all open tabspaces and file-visiting
-buffers are saved. These may either be restored interactively via
-=(tabspaces-restore-session)=, non-interactively via
-=(tabspaces--restore-session-on-startup)=, or they can be automatically opened
-when =(tabspaces-mode)= is activated if =tabspaces-session-auto-restore= is set to
-=t=. In addition, a particular project tabspace may be saved via
-=(tabspaces-save-current-project-session)=, and restored when the project is opened via =(tabspaces-open-or-create-project-and-workspace)=.
+Tabspaces provides basic functionality to save and restore both global (all
+tabspaces) and project-specific tabspace sessions. These sessions store:
+
+- Open file-visiting buffers in each tab
+- Window configurations (splits, sizes, buffer positions)
+
+**** Configuration
+
+By default, project sessions are stored in their respective project root
+directories as hidden files (e.g. =.project-name-tabspaces-session.el=).
+You can configure where project sessions are stored using
+=tabspaces-session-project-session-store=:
+
+#+begin_src elisp
+;; Store in project directories (default)
+(setq tabspaces-session-project-session-store 'project)
+
+;; Store all project sessions in a specific directory
+(setq tabspaces-session-project-session-store "~/.emacs.d/tabspaces-sessions/")
+
+;; Use a custom function to determine location
+(setq tabspaces-session-project-session-store
+      (lambda (project-root)
+        (expand-file-name 
+         (concat "sessions/" (file-name-nondirectory project-root) "-tabspaces-session.el")
+         project-root)))
+#+end_src
+
+The /global/ session file location is controlled by
+=tabspaces-session-file= (defaults to =~/.emacs.d/tabsession.el=).
+
+**** Usage
+:PROPERTIES:
+:CUSTOM_ID: usage
+:END:
+***** Global Sessions
+:PROPERTIES:
+:CUSTOM_ID: global-sessions
+:END:
+Save all tabs and their configurations:
+
+#+begin_src elisp
+M-x tabspaces-save-session
+#+end_src
+
+Restore saved global session:
+
+#+begin_src elisp
+M-x tabspaces-restore-session
+#+end_src
+
+***** Project Sessions
+:PROPERTIES:
+:CUSTOM_ID: project-sessions
+:END:
+Save current project tab and its configuration:
+
+#+begin_src elisp
+M-x tabspaces-save-current-project-session
+#+end_src
+
+Restore a project session:
+
+#+begin_src elisp
+M-x tabspaces-restore-session
+;; Then select the project directory when prompted
+#+end_src
+
+***** Automatic Session Handling
+:PROPERTIES:
+:CUSTOM_ID: automatic-session-handling
+:END:
+Enable automatic session saving on Emacs exit:
+
+#+begin_src elisp
+(setq tabspaces-session t)  ; Save sessions automatically
+#+end_src
+
+Enable automatic session restoration on startup:
+
+#+begin_src elisp
+(setq tabspaces-session-auto-restore t)  ; Restore last session on startup
+#+end_src
+
+Project sessions can also be automatically restored when switching
+projects using the provided project commands.
+
+
+Rudimentary support for saving tabspaces across sessions has been implemented. Setting =tabspaces-session= to =t= ensures that all open tabspaces and file-visiting buffers are saved. These may either be restored interactively via =(tabspaces-restore-session)=, non-interactively via =(tabspaces--restore-session-on-startup)=, or they can be automatically opened when =(tabspaces-mode)= is activated if =tabspaces-session-auto-restore= is set to =t=. In addition, a particular project tabspace may be saved via =(tabspaces-save-current-project-session)=, and restored when the project is opened via =(tabspaces-open-or-create-project-and-workspace)=.
 
 *** Additional Customization
 
@@ -297,7 +378,7 @@ If you want emacs to startup with a set of initial buffers in a workspace
   (add-hook 'after-init-hook #'my--tabspace-setup)
 #+end_src
 
-**** =TODO= file per project
+**** File Per Project
 
 By default Tabspaces will create a =project-todo.org= file at the root of the project
 when creating a new workspace using =tabspaces-open-or-create-project-and-workspace=.
