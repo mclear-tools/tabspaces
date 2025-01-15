@@ -608,6 +608,18 @@ With universal argument PREFIX, always create a new tab for the project."
   :group 'tabspaces
   :type 'string)
 
+(defcustom tabspaces-session-project-session-store 'project
+  "Determines where project session files are stored.
+Can be one of:
+- 'project (default) - Store in the project root directory
+- a string path - Store all project sessions in this directory
+- a function - Called with project root path to determine session file location"
+  :group 'tabspaces
+  :type '(choice
+          (const :tag "In project directory" project)
+          (directory :tag "In specific directory")
+          (function :tag "Custom function")))
+
 (defvar tabspaces--session-list nil
   "Store `tabspaces' session tabs and buffers.")
 
@@ -623,7 +635,7 @@ With universal argument PREFIX, always create a new tab for the project."
 ;; Save global session
 ;;;###autoload
 (defun tabspaces-save-session ()
-  "Save tabspace name and buffers."
+  "Save all tabspaces with their buffers and window configurations."
   (interactive)
   ;; Start from an empty list.
   (setq tabspaces--session-list nil)
@@ -634,7 +646,10 @@ With universal argument PREFIX, always create a new tab for the project."
                   (tab-bar-select-tab-by-name tab)
                   (setq tabspaces--session-list
                         (append tabspaces--session-list
-                                (list (cons (tabspaces--store-buffers (tabspaces--buffer-list)) tab))))))
+                                (list (list
+                                       (tabspaces--store-buffers (tabspaces--buffer-list))
+                                       tab
+                                       (window-state-get nil t)))))))
     ;; As tab-bar-select-tab starts counting from 1, we need to add 1 to the index.
     (tab-bar-select-tab (+ curr 1)))
   ;; Write to file
@@ -644,18 +659,30 @@ With universal argument PREFIX, always create a new tab for the project."
             tabspaces-session-header
             ";; Created " (current-time-string) "\n\n"
             ";; Tabs and buffers:\n")
-    (insert "(setq tabspaces--session-list '" (format "%S" tabspaces--session-list) ")")))
+    (insert "(setq tabspaces--session-list '"
+            (format "%S" tabspaces--session-list) ")"))
+  (message "Global tabspaces session file \'%s\' saved" tabspaces-session-file))
 
 ;; Save current project session
-(defun tabspaces-save-current-project-session ()
-  "Save tabspace name and buffers for current tab & project."
+(defun tabspaces-save-current-project-session (&optional session-file)
+  "Save tabspace name, buffers, and window config for current tab & project.
+Optional SESSION-FILE parameter specifies where to save the session file.
+If not provided, uses the location specified by
+`tabspaces-session-project-session-store'."
   (interactive)
+  (unless (vc-root-dir)
+    (error "Not in a version controlled project"))
   (let ((tabspaces--session-list nil) ;; Start from an empty list.
         (ctab (tabspaces--current-tab-name))
-        (current-session (with-current-buffer (buffer-name)
-                           (concat (vc-root-dir) "." (tabspaces--current-tab-name) "-tabspaces-session.el"))))
-    ;; Get buffers
-    (add-to-list 'tabspaces--session-list (cons (tabspaces--store-buffers (tabspaces--buffer-list)) ctab))
+        (current-session (or session-file
+                             (tabspaces--get-project-session-file))))
+    ;; Ensure directory exists
+    (make-directory (file-name-directory current-session) t)
+    ;; Get buffers and window state
+    (add-to-list 'tabspaces--session-list
+                 (list (tabspaces--store-buffers (tabspaces--buffer-list))
+                       ctab
+                       (window-state-get nil t))) ;; t means include buffer names
     ;; Write to file
     (with-temp-file current-session
       (point-min)
@@ -663,29 +690,82 @@ With universal argument PREFIX, always create a new tab for the project."
               tabspaces-session-header
               ";; Created " (current-time-string) "\n\n"
               ";; Tab and buffers:\n")
-      (insert "(setq tabspaces--session-list '" (format "%S" tabspaces--session-list) ")"))))
+      (insert "(setq tabspaces--session-list '"
+              (format "%S" tabspaces--session-list) ")"))
+    (message "Current project tabspaces session file \'%s\' saved" current-session)))
 
-;; Restore session
+;; Restore session functions
+(defun tabspaces--get-project-session-file ()
+  "Get the session file path based on configuration."
+  (let* ((project-root (or (vc-root-dir)
+                           (error "Not in a version controlled project")))
+         (project-name (file-name-nondirectory (directory-file-name project-root)))
+         (session-name (concat "." project-name "-tabspaces-session.el")))
+    (cond
+     ((eq tabspaces-session-project-session-store 'project)
+      (expand-file-name session-name project-root))
+
+     ((stringp tabspaces-session-project-session-store)
+      (expand-file-name session-name tabspaces-session-project-session-store))
+
+     ((functionp tabspaces-session-project-session-store)
+      (funcall tabspaces-session-project-session-store project-root))
+
+     (t (expand-file-name session-name project-root)))))
+
+(defun tabspaces--get-project-session-file-for-restore (project)
+  "Get the session file path for PROJECT based on configuration."
+  (let* ((project-name (file-name-nondirectory (directory-file-name project)))
+         (session-name (concat "." project-name "-tabspaces-session.el")))
+    (cond
+     ((eq tabspaces-session-project-session-store 'project)
+      (expand-file-name session-name project))
+
+     ((stringp tabspaces-session-project-session-store)
+      (expand-file-name session-name tabspaces-session-project-session-store))
+
+     ((functionp tabspaces-session-project-session-store)
+      (funcall tabspaces-session-project-session-store project))
+
+     (t (expand-file-name session-name project)))))
+
+
 ;;;###autoload
-(defun tabspaces-restore-session (&optional session)
-  "Restore tabspaces session."
+(defun tabspaces-restore-session (&optional project-or-session-file)
+  "Restore tabspaces session.
+If PROJECT-OR-SESSION-FILE is:
+- nil: restore the global session from `tabspaces-session-file'
+- a file path: restore that specific session file
+- a project path: restore that project's session based on `tabspaces-session-project-session-store'"
   (interactive)
-  (load-file (or session
-                 tabspaces-session-file))
-  ;; Start looping through the session list, but ensure to start from a
-  ;; temporary buffer "*tabspaces--placeholder*" in order not to pollute the
-  ;; buffer list with the final buffer from the previous tab.
-  (cl-loop for elm in tabspaces--session-list do
-           (switch-to-buffer "*tabspaces--placeholder*")
-           (tabspaces-switch-or-create-workspace (cdr elm))
-           (mapc #'find-file (car elm)))
-  ;; Once the session list is restored, remove the temporary buffer from the
-  ;; buffer list.
-  (cl-loop for elm in tabspaces--session-list do
-           (tabspaces-switch-or-create-workspace (cdr elm))
-           (tabspaces-remove-selected-buffer "*tabspaces--placeholder*"))
-  ;; Finally, kill the temporary buffer to clean up.
-  (kill-buffer "*tabspaces--placeholder*"))
+  (let ((session-file
+         (cond
+          ;; No argument - use global session file
+          ((null project-or-session-file)
+           tabspaces-session-file)
+          ;; File path - use directly
+          ((file-exists-p project-or-session-file)
+           project-or-session-file)
+          ;; Project path - get session file location
+          (t
+           (tabspaces--get-project-session-file-for-restore project-or-session-file)))))
+
+    (if (file-exists-p session-file)
+        (progn
+          (load-file session-file)
+          ;; Use placeholder buffer to avoid pollution
+          (cl-loop for elm in tabspaces--session-list do
+                   (switch-to-buffer "*tabspaces--placeholder*")
+                   (tabspaces-switch-or-create-workspace (cadr elm))
+                   (mapc #'find-file (car elm))
+                   (when (caddr elm) ; If window state exists
+                     (window-state-put (caddr elm) nil 'safe)))
+          ;; Clean up placeholder buffer
+          (cl-loop for elm in tabspaces--session-list do
+                   (tabspaces-switch-or-create-workspace (cadr elm))
+                   (tabspaces-remove-selected-buffer "*tabspaces--placeholder*"))
+          (kill-buffer "*tabspaces--placeholder*"))
+      (message "No session file found at %s" session-file))))
 
 ;; Make sure session file exists
 (defun tabspaces--create-session-file ()
@@ -702,31 +782,7 @@ Unlike the interactive restore, this function does more clean up to remove
 unnecessary tab."
   (message "Restoring tabspaces session on startup.")
   (tabspaces--create-session-file)
-  (load-file tabspaces-session-file)
-  ;; Start looping through the session list, but ensure to start from a
-  ;; temporary buffer "*tabspaces--placeholder*" in order not to pollute the
-  ;; buffer list with the final buffer from the previous tab.
-  (cl-loop for elm in tabspaces--session-list do
-           (switch-to-buffer "*tabspaces--placeholder*")
-           (tabspaces-switch-or-create-workspace (cdr elm))
-           (mapc #'find-file (car elm)))
-  ;; Once the session list is restored, remove the temporary buffer from the
-  ;; buffer list.
-  (cl-loop for elm in tabspaces--session-list do
-           (tabspaces-switch-or-create-workspace (cdr elm))
-           (tabspaces-remove-selected-buffer "*tabspaces--placeholder*"))
-  ;; If the tab restore started from an empty tab (e.g. at startup), remove the
-  ;; tab by name of "*tabspaces--placeholder*".
-  ;; NOTE When restore is interactively called, it is possible that an unnamed
-  ;; tab to be incorrectly closed as we call `switch-to-buffer', which would
-  ;; make the tab name to be "*tabspaces--placeholder*". At the startup, this
-  ;; shouldn't be an issue, but conduct a simple check before closing the tab.
-  (if (eq (tab-bar--tab-index-by-name "*tabspaces--placeholder*") 0)
-      ;; tab-bar-close-tab counts from 1.
-      (tab-bar-close-tab 1))
-  ;; Finally, kill the temporary buffer to clean up.
-  (kill-buffer "*tabspaces--placeholder*"))
-
+  (tabspaces-restore-session))
 
 ;;;; Define Keymaps
 (defvar tabspaces-command-map
