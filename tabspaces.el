@@ -532,7 +532,7 @@ With universal argument PREFIX, always create a new tab for the project."
       (tab-bar-rename-tab tab-name)
       (let ((default-directory project-directory))
         (message "Tabspaces: default directory set to %s" default-directory)
-        (if (featurep 'magit)
+        (if (fboundp 'magit-init)
             (magit-init project-directory)
           (call-interactively #'vc-create-repo))
         (delete-other-windows)
@@ -540,7 +540,7 @@ With universal argument PREFIX, always create a new tab for the project."
                    (not (file-exists-p (expand-file-name tabspaces-todo-file-name project-directory))))
           (with-temp-buffer
             (write-file (expand-file-name tabspaces-todo-file-name project-directory))))
-        (if (featurep 'magit)
+        (if (fboundp 'magit-status-setup-buffer)
             (magit-status-setup-buffer project-directory)
           (project-vc-dir))
         (dired-jump-other-window))
