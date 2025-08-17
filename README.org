@@ -113,6 +113,7 @@ Workspace Keybindings are defined in the following variable:
     (define-key map (kbd "R") 'tabspaces-remove-selected-buffer)
     (define-key map (kbd "s") 'tabspaces-switch-or-create-workspace)
     (define-key map (kbd "t") 'tabspaces-switch-buffer-and-tab)
+    (define-key map (kbd "T") 'tabspaces-toggle-echo-area-display)
     map)
   "Keymap for tabspace/workspace commands after `tabspaces-keymap-prefix'.")
 #+end_src
@@ -257,6 +258,26 @@ projects using the provided project commands.
 Rudimentary support for saving tabspaces across sessions has been implemented. Setting =tabspaces-session= to =t= ensures that all open tabspaces and file-visiting buffers are saved. These may either be restored interactively via =(tabspaces-restore-session)=, non-interactively via =(tabspaces--restore-session-on-startup)=, or they can be automatically opened when =(tabspaces-mode)= is activated if =tabspaces-session-auto-restore= is set to =t=. In addition, a particular project tabspace may be saved via =(tabspaces-save-current-project-session)=, and restored when the project is opened via =(tabspaces-open-or-create-project-and-workspace)=.
 
 *** Additional Customization
+
+**** Echo Area Display
+
+Tabspaces can optionally display tabs in the echo area (bottom of the frame) instead of the top tab-bar. This feature provides a less visually prominent way to show workspace information.
+
+#+begin_src emacs-lisp
+;; Enable echo area tab display
+(setq tabspaces-echo-area-enable t)
+
+;; Toggle echo area display (bound to C-c TAB T by default)
+(tabspaces-toggle-echo-area-display)
+#+end_src
+
+When enabled, this feature:
+- Hides the visual tab-bar at the top of the frame
+- Shows formatted tabs in the echo area after 1 second of idle time
+- Displays tabs immediately during tab operations (switching, creating, closing)
+- Maintains compatibility with existing tab-bar formatters and themes
+
+The echo area display respects your existing tab formatting configuration and works seamlessly with features like SF Symbols for tab numbering.
 
 **** Consult
 
