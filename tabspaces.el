@@ -199,10 +199,11 @@ Optional ARGS are ignored, allowing use as advice."
 
 (defun tabspaces--idle-display ()
   "Display tabs in echo area after idle period.
-Only displays if echo area feature is enabled and multiple tabs exist.
-Always display after idle time, regardless of current visibility state."
+Only displays if echo area feature is enabled, multiple tabs exist,
+and the minibuffer is not active."
   (when (and tabspaces-echo-area-enable
-             (> (length (tab-bar-tabs)) 1))
+             (> (length (tab-bar-tabs)) 1)
+             (not (minibufferp (current-buffer))))
     (tabspaces--echo-area-display)))
 
 (defun tabspaces--setup-idle-timer ()
