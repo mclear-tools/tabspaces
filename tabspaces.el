@@ -138,6 +138,34 @@ the value of `project-switch-commands'."
 
 ;;;; Echo Area Display
 
+(defvar tabspaces--tabs-visible nil
+  "Non-nil when tabs are currently displayed in the echo area.")
+
+(defvar tabspaces--idle-timer nil
+  "Timer object for displaying tabs after idle time.")
+
+(defvar tabspaces--idle-delay 1.0
+  "Number of seconds to wait before showing tabs when idle.")
+
+(defvar tabspaces--original-tab-bar-show nil
+  "Original value of `tab-bar-show' before echo area display is enabled.")
+
+(defvar tabspaces--last-echo-display nil
+  "Last tabs display string to avoid duplicate messages.")
+
+(defun tabspaces--filter-messages-buffer ()
+  "Remove tab display messages from *Messages* buffer."
+  (when (and (get-buffer "*Messages*")
+             tabspaces--last-echo-display)
+    (with-current-buffer "*Messages*"
+      (save-excursion
+        (let ((inhibit-read-only t))
+          (goto-char (point-max))
+          (forward-line -1)
+          (when (looking-at-p (regexp-quote tabspaces--last-echo-display))
+            (delete-region (line-beginning-position)
+                          (min (1+ (line-end-position)) (point-max)))))))))
+
 (defun tabspaces--echo-area-format-tabs ()
   "Format all tabs for echo area display using the configured tab-bar formatter.
 Returns a formatted string containing all tabs, or nil if only one tab exists."
@@ -155,21 +183,25 @@ Returns a formatted string containing all tabs, or nil if only one tab exists."
       (mapconcat #'identity (reverse tab-strings) ""))))
 
 (defun tabspaces--echo-area-display (&rest _)
-  "Display formatted tabs in the echo area.
+  "Display formatted tabs in the echo area without logging to *Messages*.
 Sets the visibility flag to indicate tabs are currently shown.
 Optional ARGS are ignored, allowing use as advice."
   (when tabspaces-echo-area-enable
     (let ((tabs-display (funcall tabspaces-echo-area-format-function)))
       (when tabs-display
         (setq tabspaces--tabs-visible t)
-        (message "%s" tabs-display)))))
+        ;; Mark this as a tab display message for filtering
+        (setq tabspaces--last-echo-display tabs-display)
+        ;; Display the message normally
+        (message "%s" tabs-display)
+        ;; Then remove it from *Messages* buffer
+        (run-with-timer 0.01 nil #'tabspaces--filter-messages-buffer)))))
 
 (defun tabspaces--idle-display ()
   "Display tabs in echo area after idle period.
-Only displays if echo area feature is enabled, tabs are not currently
-visible, and multiple tabs exist."
+Only displays if echo area feature is enabled and multiple tabs exist.
+Always display after idle time, regardless of current visibility state."
   (when (and tabspaces-echo-area-enable
-             (not tabspaces--tabs-visible)
              (> (length (tab-bar-tabs)) 1))
     (tabspaces--echo-area-display)))
 
@@ -192,35 +224,6 @@ Cancels any existing timer before creating a new one."
 Called before each command to track when tabs are no longer visible
 in the echo area due to user input."
   (setq tabspaces--tabs-visible nil))
-
-(defun tabspaces-toggle-echo-area-display ()
-  "Toggle echo area tab display feature on or off.
-When enabled, tabs will appear in the echo area after idle time and
-during tab operations. When disabled, tabs are only shown in the tab-bar."
-  (interactive)
-  (if (or tabspaces--tabs-visible tabspaces-echo-area-enable)
-      ;; Turn off: disable feature and clear current display
-      (progn
-        (setq tabspaces-echo-area-enable nil)
-        (setq tabspaces--tabs-visible nil)
-        (message nil)
-        (tabspaces--cancel-idle-timer)
-        (run-with-timer 0.5 nil (lambda () (message "Echo area tabs disabled"))))
-    ;; Turn on: enable feature and show tabs
-    (progn
-      (setq tabspaces-echo-area-enable t)
-      (tabspaces--setup-idle-timer)
-      (tabspaces--echo-area-display)
-      (run-with-timer 0.5 nil (lambda () (message "Echo area tabs enabled"))))))
-
-(defvar tabspaces--tabs-visible nil
-  "Non-nil when tabs are currently displayed in the echo area.")
-
-(defvar tabspaces--idle-timer nil
-  "Timer object for displaying tabs after idle time.")
-
-(defvar tabspaces--idle-delay 1.0
-  "Number of seconds to wait before showing tabs when idle.")
 
 (defun tabspaces--echo-area-setup ()
   "Initialize echo area tab display when enabled.
@@ -246,7 +249,12 @@ for immediate tab display during tab operations."
     (advice-add 'tab-bar-switch-to-prev-tab :after #'tabspaces--echo-area-display)
     (advice-add 'tab-bar-switch-to-tab :after #'tabspaces--echo-area-display)
     (advice-add 'tab-bar-new-tab :after #'tabspaces--echo-area-display)
-    (advice-add 'tab-bar-close-tab :after #'tabspaces--echo-area-display)))
+    (advice-add 'tab-bar-close-tab :after #'tabspaces--echo-area-display)
+    ;; Also add advice to tab renaming which might affect display
+    (advice-add 'tab-bar-rename-tab :after #'tabspaces--echo-area-display)
+    (advice-add 'tab-bar-rename-tab-by-name :after #'tabspaces--echo-area-display)
+    ;; Initial display if we already have multiple tabs
+    (run-with-timer 0.1 nil #'tabspaces--echo-area-display)))
 
 (defun tabspaces--echo-area-cleanup ()
   "Clean up echo area tab display configuration.
@@ -263,8 +271,31 @@ Restores original tab-bar visibility, removes timers, hooks, and advice."
   (advice-remove 'tab-bar-switch-to-tab #'tabspaces--echo-area-display)
   (advice-remove 'tab-bar-new-tab #'tabspaces--echo-area-display)
   (advice-remove 'tab-bar-close-tab #'tabspaces--echo-area-display)
+  (advice-remove 'tab-bar-rename-tab #'tabspaces--echo-area-display)
+  (advice-remove 'tab-bar-rename-tab-by-name #'tabspaces--echo-area-display)
   ;; Reset state variables
-  (setq tabspaces--tabs-visible nil))
+  (setq tabspaces--tabs-visible nil
+        tabspaces--last-echo-display nil))
+
+(defun tabspaces-toggle-echo-area-display ()
+  "Toggle echo area tab display feature on or off.
+When enabled, tabs will appear in the echo area after idle time and
+during tab operations. When disabled, tabs are only shown in the tab-bar."
+  (interactive)
+  (if (or tabspaces--tabs-visible tabspaces-echo-area-enable)
+      ;; Turn off: disable feature and clear current display
+      (progn
+        (setq tabspaces-echo-area-enable nil)
+        (setq tabspaces--tabs-visible nil)
+        (message nil)
+        (tabspaces--echo-area-cleanup)
+        (run-with-timer 0.5 nil (lambda () (message "Echo area tabs disabled"))))
+    ;; Turn on: enable feature and show tabs
+    (progn
+      (setq tabspaces-echo-area-enable t)
+      (tabspaces--echo-area-setup)
+      (tabspaces--echo-area-display)
+      (run-with-timer 0.5 nil (lambda () (message "Echo area tabs enabled"))))))
 
 ;;;; Create Buffer Workspace
 
