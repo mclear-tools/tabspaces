@@ -113,6 +113,7 @@ Workspace Keybindings are defined in the following variable:
     (define-key map (kbd "R") 'tabspaces-remove-selected-buffer)
     (define-key map (kbd "s") 'tabspaces-switch-or-create-workspace)
     (define-key map (kbd "t") 'tabspaces-switch-buffer-and-tab)
+    (define-key map (kbd "w") 'tabspaces-show-workspaces)
     (define-key map (kbd "T") 'tabspaces-toggle-echo-area-display)
     map)
   "Keymap for tabspace/workspace commands after `tabspaces-keymap-prefix'.")
@@ -278,6 +279,14 @@ When enabled, this feature:
 - Maintains compatibility with existing tab-bar formatters and themes
 
 The echo area display respects your existing tab formatting configuration and works seamlessly with features like SF Symbols for tab numbering.
+
+You can also display workspaces in the echo area on demand using:
+#+begin_src emacs-lisp
+;; Show workspaces immediately (bound to C-c TAB w by default)
+(tabspaces-show-workspaces)
+#+end_src
+
+This command shows all workspaces in the echo area without waiting for idle time or enabling the automatic display feature.
 
 **** Consult
 
