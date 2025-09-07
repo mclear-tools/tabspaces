@@ -278,6 +278,14 @@ Restores original tab-bar visibility, removes timers, hooks, and advice."
   (setq tabspaces--tabs-visible nil
         tabspaces--last-echo-display nil))
 
+(defun tabspaces-show-workspaces ()
+  "Display current workspaces in the echo area on command."
+  (interactive)
+  (let ((tabs-display (funcall tabspaces-echo-area-format-function)))
+    (if tabs-display
+        (message "%s" tabs-display)
+      (message "Only one workspace active"))))
+
 (defun tabspaces-toggle-echo-area-display ()
   "Toggle echo area tab display feature on or off.
 When enabled, tabs will appear in the echo area after idle time and
@@ -973,6 +981,7 @@ unnecessary tab."
     (define-key map (kbd "R") 'tabspaces-remove-selected-buffer)
     (define-key map (kbd "s") 'tabspaces-switch-or-create-workspace)
     (define-key map (kbd "t") 'tabspaces-switch-buffer-and-tab)
+    (define-key map (kbd "w") 'tabspaces-show-workspaces)
     map)
   "Keymap for tabspace/workspace commands after `tabspaces-keymap-prefix'.")
 (fset 'tabspaces-command-map tabspaces-command-map)
