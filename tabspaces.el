@@ -131,10 +131,18 @@ the value of `project-switch-commands'."
   :group 'tabspaces
   :type 'function)
 
-(defcustom tabspaces-echo-area-display-time nil
-  "Seconds to show tabs in echo area. nil means persistent display."
+(defcustom tabspaces-echo-area-idle-delay 1.0
+  "Number of seconds to wait before showing tabs when idle."
   :group 'tabspaces
-  :type '(choice (const :tag "Persistent" nil) number))
+  :type 'number
+  :set (lambda (symbol value)
+         (set-default symbol value)
+         ;; Restart timer with new delay if echo area is enabled
+         (when (and (boundp 'tabspaces-echo-area-enable)
+                    tabspaces-echo-area-enable
+                    (boundp 'tabspaces--idle-timer)
+                    tabspaces--idle-timer)
+           (tabspaces--setup-idle-timer))))
 
 ;;;; Echo Area Display
 
@@ -143,9 +151,6 @@ the value of `project-switch-commands'."
 
 (defvar tabspaces--idle-timer nil
   "Timer object for displaying tabs after idle time.")
-
-(defvar tabspaces--idle-delay 1.0
-  "Number of seconds to wait before showing tabs when idle.")
 
 (defvar tabspaces--original-tab-bar-show nil
   "Original value of `tab-bar-show' before echo area display is enabled.")
@@ -212,7 +217,7 @@ Cancels any existing timer before creating a new one."
   (when tabspaces--idle-timer
     (cancel-timer tabspaces--idle-timer))
   (setq tabspaces--idle-timer
-        (run-with-idle-timer tabspaces--idle-delay t #'tabspaces--idle-display)))
+        (run-with-idle-timer tabspaces-echo-area-idle-delay t #'tabspaces--idle-display)))
 
 (defun tabspaces--cancel-idle-timer ()
   "Cancel and clear the idle display timer."
@@ -220,16 +225,30 @@ Cancels any existing timer before creating a new one."
     (cancel-timer tabspaces--idle-timer)
     (setq tabspaces--idle-timer nil)))
 
-(defun tabspaces--clear-tabs-on-input ()
-  "Clear the tabs visibility flag.
-Called before each command to track when tabs are no longer visible
-in the echo area due to user input."
-  (setq tabspaces--tabs-visible nil))
+(defun tabspaces-restart-idle-timer ()
+  "Restart the echo area idle timer with current delay settings.
+Useful for troubleshooting or after changing the delay value."
+  (interactive)
+  (when tabspaces-echo-area-enable
+    (tabspaces--setup-idle-timer)
+    (message "Idle timer restarted with delay: %.1f seconds" tabspaces-echo-area-idle-delay)))
+
+(defun tabspaces-echo-area-timer-status ()
+  "Display current status of the echo area idle timer.
+Shows if timer is active, the delay setting, and other relevant info."
+  (interactive)
+  (let ((status-parts '()))
+    (push (format "Echo area enabled: %s" (if tabspaces-echo-area-enable "yes" "no")) status-parts)
+    (push (format "Idle delay: %.1f seconds" tabspaces-echo-area-idle-delay) status-parts)
+    (push (format "Timer active: %s" (if tabspaces--idle-timer "yes" "no")) status-parts)
+    (when tabspaces--idle-timer
+      (push (format "Timer object: %s" tabspaces--idle-timer) status-parts))
+    (push (format "Number of tabs: %d" (length (tab-bar-tabs))) status-parts)
+    (message (mapconcat #'identity status-parts ", "))))
 
 (defun tabspaces--echo-area-setup ()
   "Initialize echo area tab display when enabled.
-Hides the visual tab-bar, sets up idle timer, and configures advice
-for immediate tab display during tab operations."
+Hides the visual tab-bar and sets up idle timer for tab display."
   (when tabspaces-echo-area-enable
     ;; Ensure tab-bar-mode is enabled for tab functionality
     (unless tab-bar-mode (tab-bar-mode 1))
@@ -242,38 +261,17 @@ for immediate tab display during tab operations."
                       (setq tab-bar-show nil)
                       (when (fboundp 'tab-bar--update-tab-bar-lines)
                         (tab-bar--update-tab-bar-lines))))
-    ;; Configure automatic display
-    (tabspaces--setup-idle-timer)
-    (add-hook 'pre-command-hook #'tabspaces--clear-tabs-on-input)
-    ;; Add advice for immediate display on tab operations
-    (advice-add 'tab-bar-switch-to-next-tab :after #'tabspaces--echo-area-display)
-    (advice-add 'tab-bar-switch-to-prev-tab :after #'tabspaces--echo-area-display)
-    (advice-add 'tab-bar-switch-to-tab :after #'tabspaces--echo-area-display)
-    (advice-add 'tab-bar-new-tab :after #'tabspaces--echo-area-display)
-    (advice-add 'tab-bar-close-tab :after #'tabspaces--echo-area-display)
-    ;; Also add advice to tab renaming which might affect display
-    (advice-add 'tab-bar-rename-tab :after #'tabspaces--echo-area-display)
-    (advice-add 'tab-bar-rename-tab-by-name :after #'tabspaces--echo-area-display)
-    ;; Initial display if we already have multiple tabs
-    (run-with-timer 0.1 nil #'tabspaces--echo-area-display)))
+    ;; Configure automatic display via idle timer only
+    (tabspaces--setup-idle-timer)))
 
 (defun tabspaces--echo-area-cleanup ()
   "Clean up echo area tab display configuration.
-Restores original tab-bar visibility, removes timers, hooks, and advice."
+Restores original tab-bar visibility and removes timer."
   ;; Restore original tab-bar visibility setting
   (when (boundp 'tabspaces--original-tab-bar-show)
     (setq tab-bar-show tabspaces--original-tab-bar-show))
-  ;; Clean up timers and hooks
+  ;; Clean up timer
   (tabspaces--cancel-idle-timer)
-  (remove-hook 'pre-command-hook #'tabspaces--clear-tabs-on-input)
-  ;; Remove advice from tab operations
-  (advice-remove 'tab-bar-switch-to-next-tab #'tabspaces--echo-area-display)
-  (advice-remove 'tab-bar-switch-to-prev-tab #'tabspaces--echo-area-display)
-  (advice-remove 'tab-bar-switch-to-tab #'tabspaces--echo-area-display)
-  (advice-remove 'tab-bar-new-tab #'tabspaces--echo-area-display)
-  (advice-remove 'tab-bar-close-tab #'tabspaces--echo-area-display)
-  (advice-remove 'tab-bar-rename-tab #'tabspaces--echo-area-display)
-  (advice-remove 'tab-bar-rename-tab-by-name #'tabspaces--echo-area-display)
   ;; Reset state variables
   (setq tabspaces--tabs-visible nil
         tabspaces--last-echo-display nil))
