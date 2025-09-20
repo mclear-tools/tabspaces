@@ -843,6 +843,9 @@ Can be one of:
     (insert ";; -*- mode: emacs-lisp; lexical-binding:t; coding: utf-8-emacs; -*-\n"
             tabspaces-session-header
             ";; Created " (current-time-string) "\n\n"
+            ";; Project to tab name mapping:\n")
+    (insert "(setq tabspaces-project-tab-map '"
+            (format "%S" tabspaces-project-tab-map) ")\n\n"
             ";; Tabs and buffers:\n")
     (insert "(setq tabspaces--session-list '"
             (format "%S" tabspaces--session-list) ")"))
@@ -874,6 +877,9 @@ If not provided, uses the location specified by
       (insert ";; -*- mode: emacs-lisp; lexical-binding:t; coding: utf-8-emacs; -*-\n"
               tabspaces-session-header
               ";; Created " (current-time-string) "\n\n"
+              ";; Project to tab name mapping:\n")
+      (insert "(setq tabspaces-project-tab-map '"
+              (format "%S" tabspaces-project-tab-map) ")\n\n"
               ";; Tab and buffers:\n")
       (insert "(setq tabspaces--session-list '"
               (format "%S" tabspaces--session-list) ")"))
