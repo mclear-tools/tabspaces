@@ -268,14 +268,17 @@ Tabspaces can optionally display tabs in the echo area (bottom of the frame) ins
 ;; Enable echo area tab display
 (setq tabspaces-echo-area-enable t)
 
+;; Customize idle delay (default is 1.0 seconds)
+(setq tabspaces-echo-area-idle-delay 5.0)
+
 ;; Toggle echo area display (bound to C-c TAB T by default)
 (tabspaces-toggle-echo-area-display)
 #+end_src
 
 When enabled, this feature:
 - Hides the visual tab-bar at the top of the frame
-- Shows formatted tabs in the echo area after 1 second of idle time
-- Displays tabs immediately during tab operations (switching, creating, closing)
+- Shows formatted tabs in the echo area after the configured idle time
+- Does not displace other messages or minibuffer content
 - Maintains compatibility with existing tab-bar formatters and themes
 
 The echo area display respects your existing tab formatting configuration and works seamlessly with features like SF Symbols for tab numbering.
