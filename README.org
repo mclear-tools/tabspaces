@@ -120,7 +120,13 @@ Workspace Keybindings are defined in the following variable:
 #+end_src
 
 The variable =tabspaces-keymap-prefix= sets a key prefix (default is =C-c TAB=) for
-the keymap, but this can be changed to anything the user prefers.
+the keymap, but this can be changed to anything the user prefers. Set it to =nil=
+to disable automatic keymap binding entirely.
+
+*Note on key conflicts:* If you want to use =C-x TAB= as the prefix, be aware that
+in terminal Emacs, =TAB= and =C-i= are indistinguishable. However, in GUI Emacs,
+=C-x TAB= and =C-x C-i= are separate keybindings, so you can use =C-x TAB= for
+tabspaces while keeping =C-x C-i= for =indent-rigidly=.
 
 *** Buffer Filtering
 
