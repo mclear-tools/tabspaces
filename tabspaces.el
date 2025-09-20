@@ -93,9 +93,11 @@ which does not override buffers inside `tabspaces-include-buffers'."
   :type 'boolean)
 
 (defcustom tabspaces-keymap-prefix "C-c TAB"
-  "Key prefix for the tabspaces-prefix-map keymap."
+  "Key prefix for the tabspaces-prefix-map keymap.
+Set to nil to disable automatic keymap binding."
   :group 'tabspaces
-  :type 'string)
+  :type '(choice (const :tag "Disabled" nil)
+                 string))
 
 (defcustom tabspaces-initialize-project-with-todo t
   "When Non-nil create a `tabspaces-todo-file-name' file in the project
