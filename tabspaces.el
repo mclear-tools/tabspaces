@@ -2,7 +2,7 @@
 
 ;; Author: Colin McLear <mclear@fastmail.com>
 ;; Maintainer: Colin McLear
-;; Version: 1.6
+;; Version: 1.7
 ;; Package-Requires: ((emacs "27.1") (project "0.8.1"))
 ;; Keywords: convenience, frames
 ;; Homepage: https://github.com/mclear-tools/tabspaces
@@ -171,7 +171,7 @@ the value of `project-switch-commands'."
           (forward-line -1)
           (when (looking-at-p (regexp-quote tabspaces--last-echo-display))
             (delete-region (line-beginning-position)
-                          (min (1+ (line-end-position)) (point-max)))))))))
+                           (min (1+ (line-end-position)) (point-max)))))))))
 
 (defun tabspaces--echo-area-format-tabs ()
   "Format all tabs for echo area display using the configured tab-bar formatter.
@@ -258,8 +258,8 @@ Hides the visual tab-bar and sets up idle timer for tab display."
     (setq tabspaces--original-tab-bar-show tab-bar-show)
     (setq tab-bar-show nil)
     ;; Force tab-bar update after brief delay to override other configurations
-    (run-with-timer 0.1 nil 
-                    (lambda () 
+    (run-with-timer 0.1 nil
+                    (lambda ()
                       (setq tab-bar-show nil)
                       (when (fboundp 'tab-bar--update-tab-bar-lines)
                         (tab-bar--update-tab-bar-lines))))
@@ -606,6 +606,18 @@ If FRAME is nil, use the current frame."
 (defvar tabspaces-project-tab-map '()
   "Alist mapping full project paths to their respective tab names.")
 
+(defun tabspaces--get-project-for-tab (tab-name)
+  "Get project root path for TAB-NAME, or nil if not a project tab.
+Handles numbered tabs like \"ProjectName<2>\" by checking both exact
+match and base name without suffix."
+  (or
+   ;; First try exact match
+   (car (rassoc tab-name tabspaces-project-tab-map))
+   ;; Then try stripping numbered suffix like "<2>"
+   (when (string-match "\\`\\(.+\\)<[0-9]+>\\'" tab-name)
+     (let ((base-name (match-string 1 tab-name)))
+       (car (rassoc base-name tabspaces-project-tab-map))))))
+
 (defun tabspaces-rename-existing-tab (old-name new-name)
   "Rename an existing tab from OLD-NAME to NEW-NAME."
   (let ((tabs (tab-bar-tabs)))
@@ -755,7 +767,8 @@ With universal argument PREFIX, always create a new tab for the project."
       (message "Tabspaces - Creating new tab for existing project")
       (tab-bar-new-tab)
       (tab-bar-rename-tab tab-name)
-      (if (file-exists-p session)
+      (if (and tabspaces-session-auto-restore
+               (file-exists-p session))
           (tabspaces-restore-session session)
         (project-switch-project project)))
 
@@ -885,6 +898,111 @@ If not provided, uses the location specified by
               (format "%S" tabspaces--session-list) ")"))
     (message "Current project tabspaces session file \'%s\' saved" current-session)))
 
+;; Save all project sessions
+(defun tabspaces-save-all-project-sessions ()
+  "Save each project tab to its own session file.
+Iterates through all tabs, identifies which are associated with projects
+via `tabspaces-project-tab-map', and saves each project tab's session
+to its respective project directory based on
+`tabspaces-session-project-session-store'."
+  (let ((curr (tab-bar--current-tab-index))
+        (saved-projects '()))
+    (condition-case err
+        (progn
+          (dolist (tab-name (tabspaces--list-tabspaces))
+            (let ((project-root (tabspaces--get-project-for-tab tab-name)))
+              (when project-root
+                ;; Switch to the project tab
+                (tab-bar-select-tab-by-name tab-name)
+                ;; Get session file path for this project
+                (let* ((session-file (tabspaces--get-project-session-file-for-restore project-root))
+                       (tabspaces--session-list nil)
+                       (ctab tab-name))
+                  ;; Ensure directory exists
+                  (make-directory (file-name-directory session-file) t)
+                  ;; Store buffers and window state
+                  (add-to-list 'tabspaces--session-list
+                               (list (tabspaces--store-buffers (tabspaces--buffer-list))
+                                     ctab
+                                     (window-state-get nil t)))
+                  ;; Write to file
+                  (with-temp-file session-file
+                    (point-min)
+                    (insert ";; -*- mode: emacs-lisp; lexical-binding:t; coding: utf-8-emacs; -*-\n"
+                            tabspaces-session-header
+                            ";; Created " (current-time-string) "\n\n"
+                            ";; Project to tab name mapping:\n")
+                    (insert "(setq tabspaces-project-tab-map '"
+                            (format "%S" tabspaces-project-tab-map) ")\n\n"
+                            ";; Tab and buffers:\n")
+                    (insert "(setq tabspaces--session-list '"
+                            (format "%S" tabspaces--session-list) ")"))
+                  (push project-root saved-projects)))))
+          ;; Restore original tab
+          (tab-bar-select-tab (+ curr 1))
+          (when saved-projects
+            (message "Saved %d project session(s)" (length saved-projects))))
+      (error
+       (message "Error saving project sessions: %s" (error-message-string err))
+       ;; Try to restore original tab even on error
+       (ignore-errors (tab-bar-select-tab (+ curr 1)))))))
+
+;; Save non-project tabs to global session
+(defun tabspaces-save-non-project-tabs ()
+  "Save tabs not associated with projects to the global session file.
+This preserves non-project workspaces when using per-project session mode."
+  (let ((curr (tab-bar--current-tab-index))
+        (non-project-session-list nil))
+    (condition-case err
+        (progn
+          (dolist (tab-name (tabspaces--list-tabspaces))
+            (unless (tabspaces--get-project-for-tab tab-name)
+              ;; This is a non-project tab
+              (tab-bar-select-tab-by-name tab-name)
+              (setq non-project-session-list
+                    (append non-project-session-list
+                            (list (list
+                                   (tabspaces--store-buffers (tabspaces--buffer-list))
+                                   tab-name
+                                   (window-state-get nil t)))))))
+          ;; Restore original tab
+          (tab-bar-select-tab (+ curr 1))
+          ;; Only write if there are non-project tabs
+          (when non-project-session-list
+            (with-temp-file tabspaces-session-file
+              (point-min)
+              (insert ";; -*- mode: emacs-lisp; lexical-binding:t; coding: utf-8-emacs; -*-\n"
+                      tabspaces-session-header
+                      ";; Created " (current-time-string) "\n\n"
+                      ";; Non-project tabs only (project tabs saved separately)\n\n"
+                      ";; Project to tab name mapping:\n")
+              (insert "(setq tabspaces-project-tab-map '"
+                      (format "%S" tabspaces-project-tab-map) ")\n\n"
+                      ";; Tabs and buffers:\n")
+              (insert "(setq tabspaces--session-list '"
+                      (format "%S" non-project-session-list) ")"))
+            (message "Saved %d non-project tab(s) to global session" (length non-project-session-list))))
+      (error
+       (message "Error saving non-project tabs: %s" (error-message-string err))
+       (ignore-errors (tab-bar-select-tab (+ curr 1)))))))
+
+;; Smart session saver - dispatches based on configuration
+(defun tabspaces--save-session-smart ()
+  "Save sessions intelligently based on configuration.
+If `tabspaces-session-project-session-store' is set, saves each project
+tab to its own file and non-project tabs to the global file.
+Otherwise, saves everything to the global session file (traditional behavior)."
+  (cond
+   ;; Per-project saving enabled
+   ((and tabspaces-session
+         tabspaces-session-project-session-store)
+    (tabspaces-save-all-project-sessions)
+    (tabspaces-save-non-project-tabs))
+
+   ;; Traditional global saving
+   (tabspaces-session
+    (tabspaces-save-session))))
+
 ;; Restore session functions
 (defun tabspaces--get-project-session-file ()
   "Get the session file path based on configuration."
@@ -925,15 +1043,26 @@ If not provided, uses the location specified by
 (defun tabspaces-restore-session (&optional project-or-session-file)
   "Restore tabspaces session.
 If PROJECT-OR-SESSION-FILE is:
-- nil: restore the global session from `tabspaces-session-file'
+- nil: if in a project tab and per-project storage is enabled, restore current project's session;
+       otherwise restore the global session from `tabspaces-session-file'
 - a file path: restore that specific session file
 - a project path: restore that project's session based on `tabspaces-session-project-session-store'"
   (interactive)
   (let ((session-file
          (cond
-          ;; No argument - use global session file
+          ;; No argument - check if we're in a project tab with per-project storage
           ((null project-or-session-file)
-           tabspaces-session-file)
+           (if (and tabspaces-session-project-session-store
+                    (project-current))
+               ;; We're in a project - restore this project's session
+               (let* ((project-root (project-root (project-current)))
+                      (project-session (tabspaces--get-project-session-file-for-restore project-root)))
+                 (if (file-exists-p project-session)
+                     project-session
+                   ;; Project session doesn't exist, fall back to global
+                   tabspaces-session-file))
+             ;; Not in a project or per-project storage disabled - use global
+             tabspaces-session-file))
           ;; File path - use directly
           ((file-exists-p project-or-session-file)
            project-or-session-file)
@@ -955,7 +1084,8 @@ If PROJECT-OR-SESSION-FILE is:
           (cl-loop for elm in tabspaces--session-list do
                    (tabspaces-switch-or-create-workspace (cadr elm))
                    (tabspaces-remove-selected-buffer "*tabspaces--placeholder*"))
-          (kill-buffer "*tabspaces--placeholder*"))
+          (kill-buffer "*tabspaces--placeholder*")
+          (message "Restored session from %s" session-file))
       (message "No session file found at %s" session-file))))
 
 ;; Make sure session file exists
@@ -988,6 +1118,7 @@ unnecessary tab."
     (define-key map (kbd "s") 'tabspaces-switch-or-create-workspace)
     (define-key map (kbd "t") 'tabspaces-switch-buffer-and-tab)
     (define-key map (kbd "w") 'tabspaces-show-workspaces)
+    (define-key map (kbd "T") 'tabspaces-toggle-echo-area-display)
     map)
   "Keymap for tabspace/workspace commands after `tabspaces-keymap-prefix'.")
 (fset 'tabspaces-command-map tabspaces-command-map)
@@ -1018,7 +1149,7 @@ This uses Emacs `tab-bar' and `project.el'."
              ;; Remap switch-to-buffer
              (define-key (current-global-map) [remap switch-to-buffer] #'tabspaces-switch-to-buffer)))
          (when tabspaces-session
-           (add-hook 'kill-emacs-hook #'tabspaces-save-session))
+           (add-hook 'kill-emacs-hook #'tabspaces--save-session-smart))
          (when tabspaces-session-auto-restore
            (tabspaces--restore-session-on-startup))
          ;; Setup echo area display if enabled
@@ -1031,7 +1162,7 @@ This uses Emacs `tab-bar' and `project.el'."
            (define-key (current-global-map) [remap switch-to-buffer] nil))
          (setq tab-bar-tab-post-open-functions (remove #'tabspaces--tab-post-open-function tab-bar-tab-post-open-functions))
          (remove-hook 'after-make-frame-functions #'tabspaces--set-buffer-predicate)
-         (remove-hook 'kill-emacs-hook #'tabspaces-save-session)
+         (remove-hook 'kill-emacs-hook #'tabspaces--save-session-smart)
          (remove-hook 'emacs-startup-hook #'tabspaces-restore-session)
          ;; Cleanup echo area display
          (tabspaces--echo-area-cleanup))))

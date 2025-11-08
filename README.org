@@ -5,7 +5,7 @@
 #+texinfo_filename: tabspaces.info
 #+texinfo_dir_category: Emacs
 #+texinfo_dir_title: Tabspaces: (tabspaces).
-#+texinfo_dir_desc: Tabbed workspaces using tab-bar and project.el 
+#+texinfo_dir_desc: Tabbed workspaces using tab-bar and project.el
 
 #+html: <a href="https://www.gnu.org/software/emacs/"><img alt="GNU Emacs" src="https://github.com/minad/corfu/blob/screenshots/emacs.svg?raw=true"/></a>
 #+html: <a href="https://melpa.org/#/tabspaces"><img alt="MELPA" src="https://melpa.org/packages/tabspaces-badge.svg"/></a>
@@ -15,7 +15,7 @@
 Tabspaces leverages [[https://github.com/emacs-mirror/emacs/blob/master/lisp/tab-bar.el][tab-bar.el]] and [[https://github.com/emacs-mirror/emacs/blob/master/lisp/progmodes/project.el][project.el]] (both built into emacs 27+) to
 create buffer-isolated workspaces (or "tabspaces") that also integrate with your
 version-controlled projects. It should work with emacs 27+. It is tested to work
-with a single frame workflow, but should work with multiple frames as well. 
+with a single frame workflow, but should work with multiple frames as well.
 
 While other great packages exist for managing workspaces, such as [[https://github.com/alphapapa/bufler.el][bufler]],
 [[https://github.com/nex3/perspective-el][perspective]] and [[https://github.com/Bad-ptr/persp-mode.el][persp-mode]], this package is less complex than those alternatives, and works
@@ -24,13 +24,13 @@ you like simple, this may be the workspace package for you. That said, bufler,
 perspective or persp-mode, etc. may better fit your needs.
 
 *NOTE*: version 1.2 renames several functions and streamlines tab and project
-creation. Apologies if this breaks your workflow. Please update your configuration accordingly. 
+creation. Apologies if this breaks your workflow. Please update your configuration accordingly.
 
 ** Basic Usage
 
 Calling the minor-mode =tabspaces-mode= sets up newly created tabs as
 buffer-isolated workspaces using =tab.el= in the background. Calling
-=tabspaces-mode= does not itself create a new tabbed workspace. 
+=tabspaces-mode= does not itself create a new tabbed workspace.
 
 Switch or create workspace via =tabspaces-switch-or-create-workspace=. Close a
 workspace by invoking =tabspaces-close-workspace=. Note that these two functions
@@ -42,7 +42,7 @@ Open an existing version-controlled project in its own workspace using
 =tabspaces-open-or-create-project-and-workspace=. If no such project exists it
 will then create one in its own workspace for you.
 
-See workspace buffers using =tabspaces-switch-buffer= (for =consult= integration see
+See workspace buffers using =tabspaces-switch-to-buffer= (for =consult= integration see
 below), which will only show buffers in the workspace (but list-buffers,
 ibuffer, etc. will show all buffers). Setting
 =tabspaces-use-filtered-buffers-as-default= to =t= remaps =switch-to-buffer= to
@@ -69,7 +69,7 @@ Here are some screenshots of tabspaces (with my [[https://github.com/Lambda-Emac
 ** Installation
 
 You may install this package either from Melpa (=M-x package-install tabspaces
-RET=) or by cloning this repo and adding it to your load-path. 
+RET=) or by cloning this repo and adding it to your load-path.
 
 ** Setup
 
@@ -78,9 +78,9 @@ Here's one possible way of setting up the package using [[https://github.com/jwi
 
 #+begin_src emacs-lisp
 (use-package tabspaces
-  ;; use this next line only if you also use straight, otherwise ignore it. 
+  ;; use this next line only if you also use straight, otherwise ignore it.
   :straight (:type git :host github :repo "mclear-tools/tabspaces")
-  :hook (after-init . tabspaces-mode) ;; use this only if you want the minor-mode loaded at startup. 
+  :hook (after-init . tabspaces-mode) ;; use this only if you want the minor-mode loaded at startup.
   :commands (tabspaces-switch-or-create-workspace
              tabspaces-open-or-create-project-and-workspace)
   :custom
@@ -93,12 +93,15 @@ Here's one possible way of setting up the package using [[https://github.com/jwi
   ;; sessions
   (tabspaces-session t)
   (tabspaces-session-auto-restore t)
+  ;; additional options
+  (tabspaces-fully-resolve-paths t)  ; Resolve relative project paths to absolute
+  (tabspaces-exclude-buffers '("*Messages*" "*Compile-Log*"))  ; Additional buffers to exclude
   (tab-bar-new-tab-choice "*scratch*"))
 #+end_src
 
-Note the inclusion of the `tab-bar` setting, which is built-in to Emacs and allows a number of different options for what buffer to set for a newly created tab. 
+Note the inclusion of the `tab-bar` setting, which is built-in to Emacs and allows a number of different options for what buffer to set for a newly created tab.
 
-*** Keybindings 
+*** Keybindings
 Workspace Keybindings are defined in the following variable:
 
 #+begin_src emacs-lisp
@@ -160,14 +163,14 @@ Emacs. Here's what you can do with it:
     - Tabs are named descriptively based on the project structure.
     - In case of naming conflicts, it intelligently renames tabs to avoid
       confusion.
-     
+
 4. *Multiple Tabs for the Same Project*:
 
     - By using a universal argument (C-u) before calling the function,
       you can force the creation of a new tab even for already open project tabs.
     - The first tab will have the original project name.
     - Subsequent tabs will be automatically named with incrementing
-      numbers (e.g., "ProjectName<2>", "ProjectName<3>").     
+      numbers (e.g., "ProjectName<2>", "ProjectName<3>").
     - This is useful when you want to work on different aspects of the
       same project in separate workspaces.
 
@@ -183,7 +186,7 @@ tabspaces) and project-specific tabspace sessions. These sessions store:
 **** Configuration
 
 By default, project sessions are stored in their respective project root
-directories as hidden files (e.g. =.project-name-tabspaces-session.el=).
+directories as hidden files (e.g. =.{project-basename}-tabspaces-session.el=). So for a project at =/home/user/myproject/=, the session file would be =.myproject-tabspaces-session.el=.
 You can configure where project sessions are stored using
 =tabspaces-session-project-session-store=:
 
@@ -197,7 +200,7 @@ You can configure where project sessions are stored using
 ;; Use a custom function to determine location
 (setq tabspaces-session-project-session-store
       (lambda (project-root)
-        (expand-file-name 
+        (expand-file-name
          (concat "sessions/" (file-name-nondirectory project-root) "-tabspaces-session.el")
          project-root)))
 #+end_src
@@ -235,11 +238,17 @@ Save current project tab and its configuration:
 M-x tabspaces-save-current-project-session
 #+end_src
 
-Restore a project session:
+Restore sessions contextually:
 
 #+begin_src elisp
-M-x tabspaces-restore-session
-;; Then select the project directory when prompted
+;; When in a project tab (with per-project storage enabled):
+M-x tabspaces-restore-session  ; Restores current project's session
+
+;; When in a non-project tab:
+M-x tabspaces-restore-session  ; Restores global session
+
+;; Explicitly restore a specific project:
+(tabspaces-restore-session "/path/to/project")
 #+end_src
 
 ***** Automatic Session Handling
@@ -252,17 +261,42 @@ Enable automatic session saving on Emacs exit:
 (setq tabspaces-session t)  ; Save sessions automatically
 #+end_src
 
-Enable automatic session restoration on startup:
+Control automatic session restoration:
 
 #+begin_src elisp
-(setq tabspaces-session-auto-restore t)  ; Restore last session on startup
+;; Auto-restore sessions on startup and when opening projects
+(setq tabspaces-session-auto-restore t)
+
+;; Disable auto-restore (sessions must be manually restored)
+(setq tabspaces-session-auto-restore nil)
 #+end_src
 
-Project sessions can also be automatically restored when switching
-projects using the provided project commands.
+When =tabspaces-session-auto-restore= is =t=:
+- Global sessions are restored on Emacs startup
+- Project sessions are restored when opening projects (if per-project storage is enabled)
+
+When =tabspaces-session-auto-restore= is =nil=:
+- No automatic restoration occurs
+- Use =M-x tabspaces-restore-session= to manually restore sessions
+- The command is context-aware: restores project session when in a project tab, global session otherwise
 
 
-Rudimentary support for saving tabspaces across sessions has been implemented. Setting =tabspaces-session= to =t= ensures that all open tabspaces and file-visiting buffers are saved. These may either be restored interactively via =(tabspaces-restore-session)=, non-interactively via =(tabspaces--restore-session-on-startup)=, or they can be automatically opened when =(tabspaces-mode)= is activated if =tabspaces-session-auto-restore= is set to =t=. In addition, a particular project tabspace may be saved via =(tabspaces-save-current-project-session)=, and restored when the project is opened via =(tabspaces-open-or-create-project-and-workspace)=.
+Session support for saving tabspaces across Emacs sessions has been implemented. Setting =tabspaces-session= to =t= ensures that all open tabspaces and file-visiting buffers are saved. Sessions can be restored interactively via =(tabspaces-restore-session)=, which is context-aware and will restore the current project's session when called from a project tab, or the global session otherwise. Automatic restoration is controlled by =tabspaces-session-auto-restore=: when set to =t=, sessions are restored on startup and when opening projects; when =nil=, all restoration is manual. Project sessions can be saved individually via =(tabspaces-save-current-project-session)= and are stored either in project directories or a central location based on =tabspaces-session-project-session-store=.
+
+***** Advanced Session Management
+
+For more granular control over session management, additional functions are available:
+
+#+begin_src elisp
+;; Save all project tabs to their individual session files
+(tabspaces-save-all-project-sessions)
+
+;; Save only non-project tabs to the global session file
+(tabspaces-save-non-project-tabs)
+#+end_src
+
+These functions are particularly useful when using per-project session storage mode,
+allowing you to selectively save different types of workspaces.
 
 *** Additional Customization
 
@@ -277,15 +311,24 @@ Tabspaces can optionally display tabs in the echo area (bottom of the frame) ins
 ;; Customize idle delay (default is 1.0 seconds)
 (setq tabspaces-echo-area-idle-delay 5.0)
 
+;; Customize the format function (advanced users)
+(setq tabspaces-echo-area-format-function #'my-custom-tab-formatter)
+
 ;; Toggle echo area display (bound to C-c TAB T by default)
 (tabspaces-toggle-echo-area-display)
+
+;; Troubleshooting functions
+(tabspaces-restart-idle-timer)      ; Restart the idle timer if display stops working
+(tabspaces-echo-area-timer-status)  ; Check timer status for debugging
 #+end_src
 
 When enabled, this feature:
 - Hides the visual tab-bar at the top of the frame
 - Shows formatted tabs in the echo area after the configured idle time
 - Does not displace other messages or minibuffer content
+- Filters duplicate messages from the =*Messages*= buffer to reduce clutter
 - Maintains compatibility with existing tab-bar formatters and themes
+- Respects your existing tab-bar format configuration
 
 The echo area display respects your existing tab formatting configuration and works seamlessly with features like SF Symbols for tab numbering.
 
@@ -344,11 +387,11 @@ you may want to also include a hook function to turn off the
            (consult-customize consult--source-buffer :hidden t :default nil)
            (add-to-list 'consult-buffer-sources 'consult--source-workspace))
           (t
-           ;; reset consult-buffer to show all buffers 
+           ;; reset consult-buffer to show all buffers
            (consult-customize consult--source-buffer :hidden nil :default t)
            (setq consult-buffer-sources (remove #'consult--source-workspace consult-buffer-sources)))))
 
-  (add-hook 'tabspaces-mode-hook #'my--consult-tabspaces)           
+  (add-hook 'tabspaces-mode-hook #'my--consult-tabspaces)
 #+end_src
 
 **** Ivy
@@ -362,7 +405,7 @@ those in the tabspace.
 This is the frame/tab-local equivilant to `switch-to-buffer'."
   (interactive
    (list
-    (let ((blst (mapcar #'buffer-name (tabspaces-buffer-list))))
+    (let ((blst (mapcar #'buffer-name (tabspaces--buffer-list))))
       (read-buffer
        "Switch to local buffer: " blst nil
        (lambda (b) (member (if (stringp b) b (car b)) blst))))))
@@ -438,4 +481,3 @@ These include:
    + https://github.com/florommel/bufferlo
 - Consult integration
    + https://github.com/minad/consult#multiple-sources
-     
