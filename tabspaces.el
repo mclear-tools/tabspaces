@@ -1105,6 +1105,100 @@ unnecessary tab."
   (tabspaces--create-session-file)
   (tabspaces-restore-session))
 
+;;;; Ibuffer Integration
+
+(defun tabspaces-ibuffer-visit-buffer-switch-tab (&optional single)
+  "Visit the buffer on this line and switch to tab.
+If prefix argument SINGLE is non-nil, then also ensure there is only
+one window."
+  (interactive "P")
+  (let ((buf (ibuffer-current-buffer t)))
+    (tabspaces-switch-buffer-and-tab (buffer-name buf))
+    (when single
+      (delete-other-windows))))
+
+(defun tabspaces--tab-index (tab-name &optional frame)
+  "Return index of TAB-NAME in FRAME, or nil if it is not present."
+  (with-selected-frame (or frame (selected-frame))
+    (cl-loop for tab in (tabspaces--list-tabspaces)
+             for idx from 0
+             when (equal tab tab-name)
+             return idx)))
+
+(with-eval-after-load 'ibuffer
+  (unless (featurep 'ibuf-ext)
+    (require 'ibuf-ext))
+  (define-ibuffer-filter tabspaces
+      "Narrow to tabspace tab"
+    ( :description "tabspaces tab"
+      :reader  (completing-read-multiple "Filter by tabspace: "
+                                         (tabspaces--list-tabspaces)
+                                         nil
+                                         t)
+      :accept-list t)
+    (when-let (idx (tabspaces--tab-index qualifier))
+      (memq buf (tabspaces--buffer-list nil idx)))))
+
+(defun tabspaces-ibuffer--generate-filter-groups ()
+  "Generates ibuffer filter group for each tab."
+  (mapcar (lambda (tab)
+            `(,tab (tabspaces . ,tab)))
+          (tabspaces--list-tabspaces)))
+
+(defun tabspaces-ibuffer-narrow-to-tab ()
+  "Filters ibuffer to the current tab."
+  (interactive)
+  (ibuffer-filter-by-tabspaces (tabspaces--current-tab-name)))
+
+(defun tabspaces-ibuffer-group-by-tabs (&optional append)
+  "Generate an ibuffer filter group for each tab.
+Overrides currently active filter groups. With prefix APPEND, appends filter
+groups to the top. Due to ibuffer limitations, buffers will only appear under a
+single tab, even if the buffer is actually in multiple tabs."
+  (interactive "P")
+  (setq ibuffer-filter-groups (append (tabspaces-ibuffer--generate-filter-groups)
+                                      ibuffer-filter-groups))
+  (let ((ibuf (get-buffer "*Ibuffer*")))
+    (when ibuf
+      (with-current-buffer ibuf
+        (ibuffer-update nil t)))))
+
+(defcustom tabspaces-ibuffer-invert-arg nil
+  "Whether to invert the prefix ARG for `tabspaces-ibuffer'.
+When true, `tabspaces-ibuffer' shows all buffers by default, and restricts to
+the current tab only when the prefix arg is set."
+  :group 'tabspaces
+  :type 'boolean)
+
+(defcustom tabspaces-ibuffer-always-group-tabs nil
+  "Whether to automatically group buffers by tabs when calling `tabspaces-ibuffer'."
+  :group 'tabspaces
+  :type 'boolean)
+
+(defun tabspaces-ibuffer (&optional arg)
+  "Invoke IBUFFER with a configuration enabled for Tabspaces.
+Restricts to buffers in current tab. With prefix ARG, show buffers from all
+tabs. See `tabspaces-ibuffer-invert-arg',
+`tabspaces-ibuffer-always-group-tabs'."
+  (interactive "P")
+  (unless (featurep 'ibuffer)
+    (require 'ibuffer))
+  (unless (featurep 'ibuf-ext)
+    (require 'ibuf-ext))
+  (when tabspaces-ibuffer-invert-arg
+    (setq arg (not arg)))
+  (ibuffer)
+  (let ((ibuf (get-buffer "*Ibuffer*")))
+    (when ibuf
+      (with-current-buffer ibuf
+        (let ((inhibit-message t))
+        ;; filter to current tab
+        (unless arg
+          (tabspaces-ibuffer-narrow-to-tab))
+        ;; apply tab filter groups
+        (when tabspaces-ibuffer-always-group-tabs
+          (tabspaces-ibuffer-group-by-tabs)))))))
+
 ;;;; Define Keymaps
 (defvar tabspaces-command-map
   (let ((map (make-sparse-keymap)))

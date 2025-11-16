@@ -394,6 +394,15 @@ you may want to also include a hook function to turn off the
   (add-hook 'tabspaces-mode-hook #'my--consult-tabspaces)
 #+end_src
 
+**** Ibuffer
+
+See the docstrings for the following functions:
+
+- ~tabspaces-ibuffer-visit-buffer-switch-tab~
+- ~tabspaces-ibuffer-narrow-to-tab~
+- ~tabspaces-ibuffer-group-by-tabs~
+- ~tabspaces-ibuffer~
+
 **** Ivy
 
 If you use ivy you can use this function to limit your buffer search to only
