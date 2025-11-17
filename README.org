@@ -340,10 +340,26 @@ You can also display workspaces in the echo area on demand using:
 
 This command shows all workspaces in the echo area without waiting for idle time or enabling the automatic display feature.
 
-**** Consult
+**** Buffer Management Integration
 
-If you have [[https://github.com/minad/consult][consult]] installed you might want to implement the following in your
-config to have workspace buffers in =consult-buffer=:
+Tabspaces provides a minimal API for integrating with buffer management and completion frameworks. Rather than implementing tool-specific features, the package exposes workspace primitives that work with any completion system or buffer management tool.
+
+*Integration API:*
+
+The following functions form the public integration points:
+
+- =(tabspaces--list-tabspaces)= - Returns list of all workspace names
+- =(tabspaces--buffer-list &optional frame tabnum)= - Returns buffers for a workspace
+  - With no arguments: buffers in current workspace
+  - With =tabnum=: buffers in specific workspace by index
+- =(tabspaces--current-tab-name)= - Returns current workspace name
+- =(tabspaces--local-buffer-p buffer)= - Predicate testing if buffer belongs to current workspace
+
+These functions use the =--= prefix (typically indicating internal functions) but are autoloaded and form the stable integration API. Below are integration examples for popular frameworks.
+
+***** Consult
+
+If you have [[https://github.com/minad/consult][consult]] installed you can implement the following to have workspace buffers in =consult-buffer=:
 
 #+begin_src emacs-lisp
   ;; Filter Buffers for Consult-Buffer
@@ -368,15 +384,9 @@ config to have workspace buffers in =consult-buffer=:
   (add-to-list 'consult-buffer-sources 'consult--source-workspace))
 #+end_src
 
-This should seamlessly integrate workspace buffers into =consult-buffer=,
-displaying workspace buffers by default and all buffers when narrowing using
-"b". Note that you can also see all project related buffers and files just by
-narrowing with "p" in [[https://github.com/minad/consult#configuration][a default consult setup]].
+This seamlessly integrates workspace buffers into =consult-buffer=, displaying workspace buffers by default and all buffers when narrowing using "b". Note that you can also see all project related buffers and files just by narrowing with "p" in [[https://github.com/minad/consult#configuration][a default consult setup]].
 
-*NOTE*: If you typically toggle between having =tabspaces-mode= active and inactive,
-you may want to also include a hook function to turn off the
-=consult--source-workspace= above and modify the visibility of
-=consult--source-buffer=. You can do that with something like the following:
+*NOTE*: If you typically toggle between having =tabspaces-mode= active and inactive, you may want to include a hook function to turn off the =consult--source-workspace= and modify the visibility of =consult--source-buffer=:
 
 #+begin_src emacs-lisp
   (defun my--consult-tabspaces ()
@@ -394,10 +404,9 @@ you may want to also include a hook function to turn off the
   (add-hook 'tabspaces-mode-hook #'my--consult-tabspaces)
 #+end_src
 
-**** Ivy
+***** Ivy
 
-If you use ivy you can use this function to limit your buffer search to only
-those in the tabspace.
+If you use ivy you can use this function to limit your buffer search to only those in the tabspace:
 
 #+begin_src emacs-lisp
 (defun tabspaces-ivy-switch-buffer (buffer)
@@ -412,7 +421,7 @@ This is the frame/tab-local equivilant to `switch-to-buffer'."
   (ivy-switch-buffer buffer))
 #+end_src
 
-Alternatively, you may use the following function, which is basically a clone of =ivy-switch-buffer= (and thus uses ivy's own implementation framework), but with an additional predicate that only allows showing buffers from the current tabspace.
+Alternatively, you may use the following function, which is basically a clone of =ivy-switch-buffer= (and thus uses ivy's own implementation framework), but with an additional predicate that only allows showing buffers from the current tabspace:
 
 #+begin_src emacs-lisp
 (defun tabspaces-ivy-switch-buffer ()
@@ -429,6 +438,27 @@ Alternatively, you may use the following function, which is basically a clone of
             :matcher #'ivy--switch-buffer-matcher
             :caller 'ivy-switch-buffer))
 #+end_src
+
+***** ibuffer
+
+To integrate with ibuffer, use hooks to create workspace-based filter groups:
+
+#+begin_src emacs-lisp
+(defun my-tabspaces-ibuffer-group ()
+  "Group ibuffer entries by tabspace."
+  (setq ibuffer-filter-groups
+        (mapcar (lambda (tab)
+                  (let ((tab-index (tab-bar--tab-index-by-name tab)))
+                    (cons tab
+                          `((predicate . (member (buffer-name)
+                                                (mapcar #'buffer-name
+                                                        (tabspaces--buffer-list nil ,tab-index))))))))
+                (tabspaces--list-tabspaces))))
+
+(add-hook 'ibuffer-hook #'my-tabspaces-ibuffer-group)
+#+end_src
+
+This automatically organizes ibuffer by workspace whenever you open it. You can customize the grouping logic by modifying the filter predicate.
 
 **** Included Buffers
 
