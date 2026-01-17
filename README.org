@@ -366,7 +366,7 @@ If you have [[https://github.com/minad/consult][consult]] installed you can impl
 
   (with-eval-after-load 'consult
   ;; hide full buffer list (still available with "b" prefix)
-  (consult-customize consult--source-buffer :hidden t :default nil)
+  (consult-customize consult-source-buffer :hidden t :default nil)
   ;; set consult-workspace buffer list
   (defvar consult--source-workspace
     (list :name     "Workspace Buffers"
@@ -394,11 +394,11 @@ This seamlessly integrates workspace buffers into =consult-buffer=, displaying w
     (require 'consult)
     (cond (tabspaces-mode
            ;; hide full buffer list (still available with "b")
-           (consult-customize consult--source-buffer :hidden t :default nil)
+           (consult-customize consult-source-buffer :hidden t :default nil)
            (add-to-list 'consult-buffer-sources 'consult--source-workspace))
           (t
            ;; reset consult-buffer to show all buffers
-           (consult-customize consult--source-buffer :hidden nil :default t)
+           (consult-customize consult-source-buffer :hidden nil :default t)
            (setq consult-buffer-sources (remove #'consult--source-workspace consult-buffer-sources)))))
 
   (add-hook 'tabspaces-mode-hook #'my--consult-tabspaces)
