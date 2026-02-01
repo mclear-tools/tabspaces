@@ -720,6 +720,13 @@ With universal argument PREFIX, always create a new tab for the project."
 
     (message "Tabspaces: Project directory: %s" project-directory)
 
+    ;; Remember project if it exists on disk but is not yet registered
+    (let ((pr (and (not project-exists)
+                   (project--find-in-directory project-directory))))
+      (when pr
+        (project-remember-project pr)
+        (setq project-exists t)))
+
     ;; Now manage the workspace based on the project state:
     (cond
      ;; If there is no tab nor project, create both
