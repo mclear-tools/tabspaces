@@ -598,6 +598,9 @@ If FRAME is nil, use the current frame."
   (let ((buf (tabspaces--buffer-list)))
     (unwind-protect
         (cl-loop for b in buf
+                 for n = (buffer-name b)
+                 unless (or (member n tabspaces-exclude-buffers)
+                            (member n tabspaces-include-buffers))
                  do (kill-buffer b))
       (tab-bar-close-tab))))
 
