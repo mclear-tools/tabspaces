@@ -365,26 +365,29 @@ If you have [[https://github.com/minad/consult][consult]] installed you can impl
   ;; Filter Buffers for Consult-Buffer
 
   (with-eval-after-load 'consult
-  ;; hide full buffer list (still available with "b" prefix)
-  (consult-customize consult-source-buffer :hidden t :default nil)
-  ;; set consult-workspace buffer list
-  (defvar consult--source-workspace
-    (list :name     "Workspace Buffers"
-          :narrow   ?w
-          :history  'buffer-name-history
-          :category 'buffer
-          :state    #'consult--buffer-state
-          :default  t
-          :items    (lambda () (consult--buffer-query
-                           :predicate #'tabspaces--local-buffer-p
-                           :sort 'visibility
-                           :as #'buffer-name)))
+    ;; hide full buffer list (still available with "b" prefix)
+    (plist-put consult-source-buffer :hidden t)
+    (plist-put consult-source-buffer :default nil)
+    ;; set consult-workspace buffer list
+    (defvar consult--source-workspace
+      (list :name     "Workspace Buffers"
+            :narrow   ?w
+            :history  'buffer-name-history
+            :category 'buffer
+            :state    #'consult--buffer-state
+            :default  t
+            :items    (lambda () (consult--buffer-query
+                             :predicate #'tabspaces--local-buffer-p
+                             :sort 'visibility
+                             :as #'buffer-name)))
 
-    "Set workspace buffer list for consult-buffer.")
-  (add-to-list 'consult-buffer-sources 'consult--source-workspace))
+      "Set workspace buffer list for consult-buffer.")
+    (add-to-list 'consult-buffer-sources 'consult--source-workspace))
 #+end_src
 
 This seamlessly integrates workspace buffers into =consult-buffer=, displaying workspace buffers by default and all buffers when narrowing using "b". Note that you can also see all project related buffers and files just by narrowing with "p" in [[https://github.com/minad/consult#configuration][a default consult setup]].
+
+*NOTE*: We use =plist-put= to modify =consult-source-buffer= directly rather than =consult-customize=. The =consult-customize= macro validates its arguments at expansion time, which can fail depending on load order and byte-compilation state (see [[https://github.com/mclear-tools/tabspaces/issues/76][#76]] and [[https://github.com/minad/consult/issues/345][consult#345]]). Using =plist-put= avoids this issue entirely.
 
 *NOTE*: If you typically toggle between having =tabspaces-mode= active and inactive, you may want to include a hook function to turn off the =consult--source-workspace= and modify the visibility of =consult--source-buffer=:
 
@@ -394,11 +397,13 @@ This seamlessly integrates workspace buffers into =consult-buffer=, displaying w
     (require 'consult)
     (cond (tabspaces-mode
            ;; hide full buffer list (still available with "b")
-           (consult-customize consult-source-buffer :hidden t :default nil)
+           (plist-put consult-source-buffer :hidden t)
+           (plist-put consult-source-buffer :default nil)
            (add-to-list 'consult-buffer-sources 'consult--source-workspace))
           (t
            ;; reset consult-buffer to show all buffers
-           (consult-customize consult-source-buffer :hidden nil :default t)
+           (plist-put consult-source-buffer :hidden nil)
+           (plist-put consult-source-buffer :default t)
            (setq consult-buffer-sources (remove #'consult--source-workspace consult-buffer-sources)))))
 
   (add-hook 'tabspaces-mode-hook #'my--consult-tabspaces)
