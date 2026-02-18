@@ -716,7 +716,7 @@ With universal argument PREFIX, always create a new tab for the project."
          (original-tab-name (or (cdr (assoc project tabspaces-project-tab-map))
                                 (tabspaces-generate-descriptive-tab-name project existing-tab-names)))
          (tab-name original-tab-name)
-         (session (concat project "." (file-name-nondirectory (directory-file-name project)) "-tabspaces-session.el"))
+         (session (tabspaces--get-project-session-file-for-restore project))
          (project-directory project)  ; Use the full path as the project directory
          (project-exists (member (list project) project--list))
          (create-new-tab (or prefix (not (member tab-name existing-tab-names)))))
