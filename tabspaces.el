@@ -717,6 +717,9 @@ With universal argument PREFIX, always create a new tab for the project."
   (interactive
    (list (tabspaces-prompt-project-dir) current-prefix-arg))
   (let* ((project-switch-commands tabspaces-project-switch-commands)
+         ;; Open new tabs onto *scratch* so the prior tab's current buffer
+         ;; isn't inherited into the new workspace's buffer-list (issue #80).
+         (tab-bar-new-tab-choice (lambda () (get-buffer-create "*scratch*")))
          (project (if tabspaces-fully-resolve-paths
                       (expand-file-name project)  ; Resolve relative paths
                     project))
