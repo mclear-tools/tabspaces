@@ -181,8 +181,9 @@ Tabspaces provides basic functionality to save and restore both global (all
 tabspaces) and project-specific tabspace sessions. These sessions store:
 
 - Open file-visiting buffers in each tab
-- Dired, eshell, and shell buffers (via the built-in handlers; see [[#non-file-buffer-restoration][Non-file
-  Buffer Restoration]] below for the hook to add others such as vterm or eat)
+- Dired, eshell, and shell buffers (via the built-in handlers). See
+  [[#non-file-buffer-restoration][Non-file Buffer Restoration]] below for the hook to add others such
+  as vterm or eat.
 - Window configurations (splits, sizes, buffer positions)
 
 **** Configuration
@@ -312,9 +313,9 @@ small registration API; users wire up the kinds they care about in their own
 config. The package itself does not depend on any third-party terminal or
 REPL package.
 
-The save-side handler captures =default-directory= and the buffer name; the
+The save-side handler captures =default-directory= and the buffer name. The
 restore-side handler creates a fresh buffer at the saved directory. Running
-processes are *not* revived -- a restored shell starts a new process; a
+processes are *not* revived. A restored shell starts a new process, and a
 restored eshell starts a new eshell. Histories and output are not preserved.
 
 ****** Registration API
@@ -331,11 +332,11 @@ restored eshell starts a new eshell. Histories and output are not preserved.
   reused, or =nil= to skip the record.
 
 Re-registering a =KIND= replaces the previous entry. The most recently
-registered handler runs first on save; the three built-ins (=dired=,
+registered handler runs first on save. The three built-ins (=dired=,
 =eshell=, =shell=) are registered at package load time and act as
 fallbacks. Restore-fn bodies must create buffers but must *not* call
 window-configuration-changing functions like =pop-to-buffer-other-window=
-or =delete-other-windows= -- the outer restore loop wraps each record's
+or =delete-other-windows=. The outer restore loop wraps each record's
 handler in =save-window-excursion= and then calls =window-state-put= to
 set the final layout.
 
@@ -361,7 +362,7 @@ set the final layout.
    (require 'vterm)
    (let ((name (plist-get rec :name))
          (dir  (plist-get rec :dir)))
-     (or (tabspaces--reuse-existing-buffer name)
+     (or (tabspaces-reuse-existing-buffer name)
          (condition-case err
              (let ((default-directory dir))
                (vterm name))
@@ -377,11 +378,11 @@ message), so handlers do not need their own remote-path checks.
 
 Register at top level, *not* inside =(with-eval-after-load 'THIRD-PARTY ...)=.
 If =tabspaces-session-auto-restore= is =t=, =tabspaces-mode 1= triggers a
-restore immediately on startup; if your vterm handler is wrapped in
+restore immediately on startup. If your vterm handler is wrapped in
 =(with-eval-after-load 'vterm ...)= the registration has not yet fired
 when the restore runs, and any =:kind vterm= records are reported as
 unknown kinds (single summary message) and skipped. Calling =M-x vterm=
-later loads vterm and runs the registration -- but the records are
+later loads vterm and runs the registration, but the records are
 already gone from the session.
 
 The canonical pattern shown above puts =(require 'vterm)= inside the
@@ -404,7 +405,7 @@ pre-compiled, the first restore pays the one-time package-load cost.
   know the restored buffer starts empty.
 - *Single-frame restore*: =tabspaces-restore-session= drives the current
   frame's tabs. Calling it on a second frame performs a second full
-  restore; the dedup check sees the first frame's buffers as foreign and
+  restore. The dedup check sees the first frame's buffers as foreign and
   creates fresh ones.
 - *One-way backward compat*: session files written by this version include
   plist records that older versions cannot read. Downgrading requires
@@ -425,7 +426,7 @@ pre-compiled, the first restore pays the one-time package-load cost.
  (lambda (rec)
    (let ((name (plist-get rec :name))
          (dir  (plist-get rec :dir)))
-     (or (tabspaces--reuse-existing-buffer name)
+     (or (tabspaces-reuse-existing-buffer name)
          (condition-case err
              (let* ((default-directory dir)
                     (program (or explicit-shell-file-name
@@ -450,7 +451,7 @@ pre-compiled, the first restore pays the one-time package-load cost.
  (lambda (rec)
    (let ((name (plist-get rec :name))
          (dir  (plist-get rec :dir)))
-     (or (tabspaces--reuse-existing-buffer name)
+     (or (tabspaces-reuse-existing-buffer name)
          (condition-case err
              (let ((default-directory dir))
                (ielm name))

@@ -866,9 +866,9 @@ loaded are prepended to this list (see
 
 (defvar tabspaces--restore-unknown-kinds nil
   "Accumulator for unknown :kind values encountered during restore.
-Dynamically bound by `tabspaces-restore-session'; declared here so the
-helper `tabspaces--restore-buffer-record' can push to it from outside
-the let-binding scope under lexical-binding.")
+Dynamically bound by `tabspaces-restore-session'.  Declared here so
+the helper `tabspaces--restore-buffer-record' can push to it from
+outside the let-binding scope under lexical-binding.")
 
 ;;;###autoload
 (defun tabspaces-register-buffer-kind (kind save-fn restore-fn)
@@ -879,8 +879,8 @@ created buffer or nil to skip the record.
 
 Re-registering KIND replaces any prior entry.  Re-registrations are
 prepended to `tabspaces--buffer-kind-handlers', so the most recently
-registered handler runs first on save.  The built-in handlers
-shipped with tabspaces are registered at the end of this file; user
+registered handler runs first on save.  The built-in handlers shipped
+with tabspaces are registered at the end of this file.  User
 registrations issued after `(require \\='tabspaces)' therefore take
 precedence on save.
 
@@ -1125,10 +1125,15 @@ Otherwise, saves everything to the global session file (traditional behavior)."
 
      (t (expand-file-name session-name project)))))
 
-(defun tabspaces--reuse-existing-buffer (name)
-  "Return the buffer named NAME iff it is already in this tab's buffer-list.
-Returns nil if no such buffer exists, or if it exists in another tab.
-Callers should fall through to create a fresh buffer when nil is returned."
+;;;###autoload
+(defun tabspaces-reuse-existing-buffer (name)
+  "Return the buffer named NAME iff it is in the current tab's buffer-list.
+Return nil if no such buffer exists, or if a buffer with NAME exists
+but in another tab.  Intended for use inside restore-fns registered
+via `tabspaces-register-buffer-kind': call this first and fall
+through to create a fresh buffer when the result is nil.  Per-tab
+dedup preserves workspace isolation when the same buffer name lives
+in multiple tabs."
   (let ((existing (get-buffer name)))
     (and existing
          (memq existing (tabspaces--buffer-list))
@@ -1138,11 +1143,17 @@ Callers should fall through to create a fresh buffer when nil is returned."
   "Materialize one buffer from session record REC.
 Returns the buffer created or reused, or nil if skipped.
 Pushes unknown :kind values into the dynamically-bound
-`tabspaces--restore-unknown-kinds' accumulator.  Errors signalled by a
-user-registered handler are caught and logged so one buggy handler
-does not abort the entire restore loop."
+`tabspaces--restore-unknown-kinds' accumulator.  Errors signalled by
+`find-file' on a legacy file record or by a user-registered handler
+are caught and logged so one bad record does not abort the entire
+restore loop."
   (cond
-   ((stringp rec) (find-file rec))
+   ((stringp rec)
+    (condition-case err
+        (find-file rec)
+      (error
+       (message "tabspaces: file restore skipped (%s): %S" rec err)
+       nil)))
    ((and (consp rec) (plist-get rec :kind))
     (let* ((kind (plist-get rec :kind))
            (entry (assq kind tabspaces--buffer-kind-handlers))
@@ -1260,8 +1271,8 @@ If PROJECT-OR-SESSION-FILE is:
                      (tabspaces-remove-selected-buffer "*tabspaces--placeholder*"))
             (when (get-buffer "*tabspaces--placeholder*")
               (kill-buffer "*tabspaces--placeholder*"))
-            ;; Summary messages (informational; the final confirmation message
-            ;; below is what shows in the minibuffer)
+            ;; Summary messages.  These are informational.  The final
+            ;; confirmation message below is what lands in the minibuffer.
             (when (> skipped-remote 0)
               (message "tabspaces: %d remote buffer(s) skipped (TRAMP)"
                        skipped-remote))
@@ -1315,20 +1326,25 @@ unnecessary tab."
          (dir  (plist-get rec :dir)))
      (cond
       ((not (and dir (stringp dir) (file-directory-p dir))) nil)
-      (t (or (tabspaces--reuse-existing-buffer name)
+      (t (or (tabspaces-reuse-existing-buffer name)
              (condition-case err
-                 (let* ((default-directory dir)
-                        ;; Drop only the stale cross-tab cache entry for DIR;
-                        ;; setting `dired-buffers' to nil would orphan the new
-                        ;; advertise from the global registry.
-                        (dired-buffers
-                         (assq-delete-all (expand-file-name dir) dired-buffers))
-                        (buf (dired-noselect dir)))
-                   (when (and buf
-                              (not (equal name (buffer-name buf)))
-                              (not (get-buffer name)))
-                     (with-current-buffer buf (rename-buffer name)))
-                   buf)
+                 (let* ((default-directory dir))
+                   ;; Drop the stale cross-tab cache entry for DIR in place.
+                   ;; A `let' rebinding would shadow the global, so the new
+                   ;; `dired-advertise' from `dired-noselect' would mutate
+                   ;; the local binding and the restored buffer would never
+                   ;; appear in the global registry.  Use `assoc-delete-all'
+                   ;; (string-key compare); `assq-delete-all' is a no-op on
+                   ;; string keys because it compares with `eq'.
+                   (setq dired-buffers
+                         (assoc-delete-all (expand-file-name dir)
+                                           dired-buffers))
+                   (let ((buf (dired-noselect dir)))
+                     (when (and buf
+                                (not (equal name (buffer-name buf)))
+                                (not (get-buffer name)))
+                       (with-current-buffer buf (rename-buffer name)))
+                     buf))
                (error
                 (message "tabspaces: dired restore skipped (%s): %S" dir err)
                 nil))))))))
@@ -1351,10 +1367,10 @@ unnecessary tab."
          (dir  (plist-get rec :dir)))
      (cond
       ((not (and dir (stringp dir) (file-directory-p dir))) nil)
-      (t (or (tabspaces--reuse-existing-buffer name)
+      (t (or (tabspaces-reuse-existing-buffer name)
              (condition-case err
                  (let* ((default-directory dir)
-                        ;; Bind the saved buffer name; (eshell t) calls
+                        ;; Bind the saved buffer name.  (eshell t) calls
                         ;; (generate-new-buffer eshell-buffer-name), adding a
                         ;; `<N>' suffix on collision.  Cross-tab collisions
                         ;; are captured by the restore loop's substitution
@@ -1379,7 +1395,7 @@ unnecessary tab."
          (dir  (plist-get rec :dir)))
      (cond
       ((not (and dir (stringp dir) (file-directory-p dir))) nil)
-      (t (or (tabspaces--reuse-existing-buffer name)
+      (t (or (tabspaces-reuse-existing-buffer name)
              (condition-case err
                  (let* ((default-directory dir)
                         ;; `shell' reuses an existing buffer with the given
