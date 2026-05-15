@@ -58,6 +58,11 @@
 (declare-function magit-status-setup-buffer "magit-status")
 (declare-function ibuffer-current-buffer "ibuffer" (&optional must-be-live))
 
+;; Forward declarations for buffer-kind handlers.  These special variables
+;; are defined in their respective packages, which we do not require here.
+(defvar eshell-buffer-name)
+(defvar dired-buffers)
+
 ;;;; Variables
 
 (defgroup tabspaces nil
@@ -842,14 +847,75 @@ Can be one of:
 (defvar tabspaces--session-list nil
   "Store `tabspaces' session tabs and buffers.")
 
+;;;; Buffer-kind registration
+
+(defvar tabspaces--buffer-kind-handlers nil
+  "Alist of (KIND SAVE-FN RESTORE-FN) for non-file buffer kinds.
+SAVE-FN takes a buffer and returns a plist record (with :kind) or nil.
+RESTORE-FN takes a plist record and returns the created buffer or nil.
+KIND is the symbol used as the :kind value in serialized records.
+
+The alist is walked front-to-back on save: the first SAVE-FN that
+returns non-nil for a given buffer wins.  On restore, the entry is
+looked up by KIND via `assq'.
+
+Built-in handlers for `dired', `eshell', and `shell' are registered at
+the end of this file.  User registrations issued after the package is
+loaded are prepended to this list (see
+`tabspaces-register-buffer-kind') so they take precedence on save.")
+
+(defvar tabspaces--restore-unknown-kinds nil
+  "Accumulator for unknown :kind values encountered during restore.
+Dynamically bound by `tabspaces-restore-session'; declared here so the
+helper `tabspaces--restore-buffer-record' can push to it from outside
+the let-binding scope under lexical-binding.")
+
+;;;###autoload
+(defun tabspaces-register-buffer-kind (kind save-fn restore-fn)
+  "Register handlers for non-file buffer KIND.
+SAVE-FN takes a buffer and returns a plist (with :kind KIND) or nil
+to skip the buffer.  RESTORE-FN takes such a plist and returns the
+created buffer or nil to skip the record.
+
+Re-registering KIND replaces any prior entry.  Re-registrations are
+prepended to `tabspaces--buffer-kind-handlers', so the most recently
+registered handler runs first on save.  The built-in handlers
+shipped with tabspaces are registered at the end of this file; user
+registrations issued after `(require \\='tabspaces)' therefore take
+precedence on save.
+
+Restore-fn bodies must create buffers but must NOT call
+window-configuration-changing functions like `pop-to-buffer-other-window'
+or `delete-other-windows' -- the outer restore loop wraps each
+record's handler in `save-window-excursion' and then calls
+`window-state-put' to set the final layout."
+  (setq tabspaces--buffer-kind-handlers
+        (cons (list kind save-fn restore-fn)
+              (assq-delete-all kind tabspaces--buffer-kind-handlers))))
+
 ;; Helper functions
-(defun tabspaces--buffile (b)
-  "Get filename for buffers."
-  (cl-remove-if nil (buffer-file-name b)))
+(defun tabspaces--buffer-record (b)
+  "Return a serializable session record for buffer B, or nil to skip.
+File-visiting buffers are returned as bare path strings (legacy
+format).  Other buffers are dispatched through
+`tabspaces--buffer-kind-handlers'; the first save-fn that returns
+non-nil wins."
+  (when (buffer-live-p b)
+    (with-current-buffer b
+      (cond
+       (buffer-file-name buffer-file-name)
+       (t (catch 'found
+            (dolist (entry tabspaces--buffer-kind-handlers)
+              (let ((rec (funcall (nth 1 entry) b)))
+                (when rec (throw 'found rec))))
+            nil))))))
 
 (defun tabspaces--store-buffers (bufs)
-  "Make list of filenames."
-  (flatten-tree (mapcar #'tabspaces--buffile bufs)))
+  "Return list of session records for BUFS, skipping unhandled buffers.
+Each record is either a file path string or a plist of the form
+\(:kind SYMBOL :dir DIR :name NAME ...) per
+`tabspaces--buffer-kind-handlers'."
+  (delq nil (mapcar #'tabspaces--buffer-record bufs)))
 
 ;; Save global session
 ;;;###autoload
@@ -1059,6 +1125,71 @@ Otherwise, saves everything to the global session file (traditional behavior)."
 
      (t (expand-file-name session-name project)))))
 
+(defun tabspaces--reuse-existing-buffer (name)
+  "Return the buffer named NAME iff it is already in this tab's buffer-list.
+Returns nil if no such buffer exists, or if it exists in another tab.
+Callers should fall through to create a fresh buffer when nil is returned."
+  (let ((existing (get-buffer name)))
+    (and existing
+         (memq existing (tabspaces--buffer-list))
+         existing)))
+
+(defun tabspaces--restore-buffer-record (rec)
+  "Materialize one buffer from session record REC.
+Returns the buffer created or reused, or nil if skipped.
+Pushes unknown :kind values into the dynamically-bound
+`tabspaces--restore-unknown-kinds' accumulator.  Errors signalled by a
+user-registered handler are caught and logged so one buggy handler
+does not abort the entire restore loop."
+  (cond
+   ((stringp rec) (find-file rec))
+   ((and (consp rec) (plist-get rec :kind))
+    (let* ((kind (plist-get rec :kind))
+           (entry (assq kind tabspaces--buffer-kind-handlers))
+           (restore-fn (and entry (nth 2 entry))))
+      (cond
+       (restore-fn
+        (condition-case err
+            (funcall restore-fn rec)
+          (error
+           (message "tabspaces: handler for %s signalled: %S" kind err)
+           nil)))
+       (t (push kind tabspaces--restore-unknown-kinds)
+          nil))))))
+
+(defun tabspaces--rewrite-window-state (state subst)
+  "Return STATE with buffer NAMEs substituted per alist SUBST.
+SUBST is an alist of (saved-name . actual-name) pairs.  Walks the
+three buffer-name reference shapes in window-state output: leaf
+\(buffer NAME . _) entries, (next-buffers . (NAMES)) forward history
+lists, and (prev-buffers . ((NAME M1 M2) ...)) backward history with
+marker positions.  Substituted prev-buffers entries emit (NAME 1 1)
+so `window--state-put-2' creates valid markers at position 1 -- saved
+point is lost for those slots, but navigation works without relying
+on undocumented nil-marker behaviour."
+  (cond
+   ((null subst) state)
+   ((and (consp state) (eq (car state) 'buffer) (stringp (cadr state)))
+    (let ((repl (assoc (cadr state) subst)))
+      (if repl (cons 'buffer (cons (cdr repl) (cddr state))) state)))
+   ((and (consp state) (eq (car state) 'next-buffers))
+    (cons 'next-buffers
+          (mapcar (lambda (n)
+                    (let ((r (assoc n subst))) (if r (cdr r) n)))
+                  (cdr state))))
+   ((and (consp state) (eq (car state) 'prev-buffers))
+    (cons 'prev-buffers
+          (mapcar (lambda (e)
+                    (let ((r (assoc (car e) subst)))
+                      (cond
+                       (r (list (cdr r) 1 1))
+                       (t e))))
+                  (cdr state))))
+   ((consp state)
+    (cons (tabspaces--rewrite-window-state (car state) subst)
+          (tabspaces--rewrite-window-state (cdr state) subst)))
+   (t state)))
+
 
 ;;;###autoload
 (defun tabspaces-restore-session (&optional project-or-session-file)
@@ -1094,19 +1225,50 @@ If PROJECT-OR-SESSION-FILE is:
     (if (file-exists-p session-file)
         (progn
           (load-file session-file)
-          ;; Use placeholder buffer to avoid pollution
-          (cl-loop for elm in tabspaces--session-list do
-                   (switch-to-buffer "*tabspaces--placeholder*")
-                   (tabspaces-switch-or-create-workspace (cadr elm))
-                   (mapc #'find-file (car elm))
-                   (when (caddr elm) ; If window state exists
-                     (window-state-put (caddr elm) nil 'safe)))
-          ;; Clean up placeholder buffer
-          (cl-loop for elm in tabspaces--session-list do
-                   (tabspaces-switch-or-create-workspace (cadr elm))
-                   (tabspaces-remove-selected-buffer "*tabspaces--placeholder*"))
-          (kill-buffer "*tabspaces--placeholder*")
-          (message "Restored session from %s" session-file))
+          (let ((tabspaces--restore-unknown-kinds nil)
+                (skipped-remote 0))
+            ;; Use placeholder buffer to avoid pollution
+            (cl-loop for elm in tabspaces--session-list do
+                     (switch-to-buffer "*tabspaces--placeholder*")
+                     (tabspaces-switch-or-create-workspace (cadr elm))
+                     (let ((subst nil))
+                       (save-window-excursion
+                         (dolist (rec (car elm))
+                           (let ((remote
+                                  (cond ((stringp rec) (file-remote-p rec))
+                                        ((consp rec)
+                                         (file-remote-p (plist-get rec :dir))))))
+                             (cond
+                              (remote (cl-incf skipped-remote))
+                              (t (let ((buf (tabspaces--restore-buffer-record rec))
+                                       (sname (and (consp rec)
+                                                   (plist-get rec :name))))
+                                   (when buf
+                                     (switch-to-buffer buf)
+                                     (when (and sname
+                                                (not (equal sname
+                                                            (buffer-name buf))))
+                                       (push (cons sname (buffer-name buf))
+                                             subst)))))))))
+                       (when (caddr elm) ; If window state exists
+                         (window-state-put
+                          (tabspaces--rewrite-window-state (caddr elm) subst)
+                          nil 'safe))))
+            ;; Clean up placeholder buffer
+            (cl-loop for elm in tabspaces--session-list do
+                     (tabspaces-switch-or-create-workspace (cadr elm))
+                     (tabspaces-remove-selected-buffer "*tabspaces--placeholder*"))
+            (when (get-buffer "*tabspaces--placeholder*")
+              (kill-buffer "*tabspaces--placeholder*"))
+            ;; Summary messages (informational; the final confirmation message
+            ;; below is what shows in the minibuffer)
+            (when (> skipped-remote 0)
+              (message "tabspaces: %d remote buffer(s) skipped (TRAMP)"
+                       skipped-remote))
+            (when tabspaces--restore-unknown-kinds
+              (message "tabspaces: unknown buffer kinds in session: %S"
+                       (delete-dups tabspaces--restore-unknown-kinds)))
+            (message "Restored session from %s" session-file)))
       (message "No session file found at %s" session-file))))
 
 ;; Make sure session file exists
@@ -1125,6 +1287,109 @@ unnecessary tab."
   (message "Restoring tabspaces session on startup.")
   (tabspaces--create-session-file)
   (tabspaces-restore-session))
+
+;;;; Built-in buffer-kind handlers
+
+;; These registrations must be the last top-level forms in the session section
+;; so that user registrations issued after `(require 'tabspaces)' land ahead
+;; of the built-ins in `tabspaces--buffer-kind-handlers' and take precedence
+;; on save (see `tabspaces-register-buffer-kind' docstring).
+
+;; Each handler validates `:dir' before proceeding and wraps the creation
+;; body in `condition-case' so a stale directory or transient error drops
+;; just that buffer (with a logged breadcrumb) rather than poisoning the
+;; rest of the tab's restore.
+
+(tabspaces-register-buffer-kind
+ 'dired
+ (lambda (b)
+   (with-current-buffer b
+     (when (and (derived-mode-p 'dired-mode)
+                (not (derived-mode-p 'image-dired-thumbnail-mode))
+                (not (consp dired-directory)))
+       (list :kind 'dired
+             :dir default-directory
+             :name (buffer-name)))))
+ (lambda (rec)
+   (let ((name (plist-get rec :name))
+         (dir  (plist-get rec :dir)))
+     (cond
+      ((not (and dir (stringp dir) (file-directory-p dir))) nil)
+      (t (or (tabspaces--reuse-existing-buffer name)
+             (condition-case err
+                 (let* ((default-directory dir)
+                        ;; Drop only the stale cross-tab cache entry for DIR;
+                        ;; setting `dired-buffers' to nil would orphan the new
+                        ;; advertise from the global registry.
+                        (dired-buffers
+                         (assq-delete-all (expand-file-name dir) dired-buffers))
+                        (buf (dired-noselect dir)))
+                   (when (and buf
+                              (not (equal name (buffer-name buf)))
+                              (not (get-buffer name)))
+                     (with-current-buffer buf (rename-buffer name)))
+                   buf)
+               (error
+                (message "tabspaces: dired restore skipped (%s): %S" dir err)
+                nil))))))))
+
+(tabspaces-register-buffer-kind
+ 'eshell
+ (lambda (b)
+   (with-current-buffer b
+     (when (derived-mode-p 'eshell-mode)
+       (list :kind 'eshell
+             :dir default-directory
+             :name (buffer-name)))))
+ (lambda (rec)
+   ;; Load eshell up front so `eshell-buffer-name' is declared as a
+   ;; special variable before we let-bind it.  Otherwise the let
+   ;; creates a lexical binding and eshell.el's defcustom fails on
+   ;; first load with "Defining as dynamic an already lexical var".
+   (require 'eshell)
+   (let ((name (plist-get rec :name))
+         (dir  (plist-get rec :dir)))
+     (cond
+      ((not (and dir (stringp dir) (file-directory-p dir))) nil)
+      (t (or (tabspaces--reuse-existing-buffer name)
+             (condition-case err
+                 (let* ((default-directory dir)
+                        ;; Bind the saved buffer name; (eshell t) calls
+                        ;; (generate-new-buffer eshell-buffer-name), adding a
+                        ;; `<N>' suffix on collision.  Cross-tab collisions
+                        ;; are captured by the restore loop's substitution
+                        ;; alist for window-state-put.
+                        (eshell-buffer-name name)
+                        (buf (eshell t)))
+                   buf)
+               (error
+                (message "tabspaces: eshell restore skipped (%s): %S" dir err)
+                nil))))))))
+
+(tabspaces-register-buffer-kind
+ 'shell
+ (lambda (b)
+   (with-current-buffer b
+     (when (derived-mode-p 'shell-mode)
+       (list :kind 'shell
+             :dir default-directory
+             :name (buffer-name)))))
+ (lambda (rec)
+   (let ((name (plist-get rec :name))
+         (dir  (plist-get rec :dir)))
+     (cond
+      ((not (and dir (stringp dir) (file-directory-p dir))) nil)
+      (t (or (tabspaces--reuse-existing-buffer name)
+             (condition-case err
+                 (let* ((default-directory dir)
+                        ;; `shell' reuses an existing buffer with the given
+                        ;; name (cross-tab leak risk); `generate-new-buffer-name'
+                        ;; pre-resolves to a guaranteed-unique name.
+                        (buf (shell (generate-new-buffer-name name))))
+                   buf)
+               (error
+                (message "tabspaces: shell restore skipped (%s): %S" dir err)
+                nil))))))))
 
 ;;;; Define Keymaps
 (defvar tabspaces-command-map

@@ -181,6 +181,8 @@ Tabspaces provides basic functionality to save and restore both global (all
 tabspaces) and project-specific tabspace sessions. These sessions store:
 
 - Open file-visiting buffers in each tab
+- Dired, eshell, and shell buffers (via the built-in handlers; see [[#non-file-buffer-restoration][Non-file
+  Buffer Restoration]] below for the hook to add others such as vterm or eat)
 - Window configurations (splits, sizes, buffer positions)
 
 **** Configuration
@@ -297,6 +299,165 @@ For more granular control over session management, additional functions are avai
 
 These functions are particularly useful when using per-project session storage mode,
 allowing you to selectively save different types of workspaces.
+
+***** Non-file Buffer Restoration
+:PROPERTIES:
+:CUSTOM_ID: non-file-buffer-restoration
+:END:
+
+In addition to file-visiting buffers, tabspaces ships handlers that save and
+restore =dired=, =eshell=, and =shell= buffers as part of a session. For
+other buffer kinds (=term=, =vterm=, =eat=, =ielm=, etc.) tabspaces exposes a
+small registration API; users wire up the kinds they care about in their own
+config. The package itself does not depend on any third-party terminal or
+REPL package.
+
+The save-side handler captures =default-directory= and the buffer name; the
+restore-side handler creates a fresh buffer at the saved directory. Running
+processes are *not* revived -- a restored shell starts a new process; a
+restored eshell starts a new eshell. Histories and output are not preserved.
+
+****** Registration API
+
+#+begin_src elisp
+(tabspaces-register-buffer-kind KIND SAVE-FN RESTORE-FN)
+#+end_src
+
+- =KIND= is a symbol used as the =:kind= value in serialized records.
+- =SAVE-FN= takes a buffer and returns either a plist of the form
+  =(:kind KIND :dir DIR :name NAME ...)= or =nil= to skip the buffer. Add
+  any extra keys your restore-fn needs.
+- =RESTORE-FN= takes such a plist and returns the buffer it created or
+  reused, or =nil= to skip the record.
+
+Re-registering a =KIND= replaces the previous entry. The most recently
+registered handler runs first on save; the three built-ins (=dired=,
+=eshell=, =shell=) are registered at package load time and act as
+fallbacks. Restore-fn bodies must create buffers but must *not* call
+window-configuration-changing functions like =pop-to-buffer-other-window=
+or =delete-other-windows= -- the outer restore loop wraps each record's
+handler in =save-window-excursion= and then calls =window-state-put= to
+set the final layout.
+
+****** Example: vterm
+
+#+begin_src elisp
+;; In init.el, after (require 'tabspaces).
+(tabspaces-register-buffer-kind
+ 'vterm
+ ;; SAVE-FN: only fires for vterm-mode buffers. Safe to define
+ ;; before vterm itself is loaded -- derived-mode-p returns nil
+ ;; for unloaded modes.
+ (lambda (b)
+   (with-current-buffer b
+     (when (derived-mode-p 'vterm-mode)
+       (list :kind 'vterm
+             :dir default-directory
+             :name (buffer-name)))))
+ ;; RESTORE-FN: load vterm lazily, then create the buffer at the saved
+ ;; directory. Wrap the body in condition-case so a single bad record
+ ;; doesn't poison the rest of the restore.
+ (lambda (rec)
+   (require 'vterm)
+   (let ((name (plist-get rec :name))
+         (dir  (plist-get rec :dir)))
+     (or (tabspaces--reuse-existing-buffer name)
+         (condition-case err
+             (let ((default-directory dir))
+               (vterm name))
+           (error
+            (message "tabspaces: vterm restore skipped (%s): %S" dir err)
+            nil))))))
+#+end_src
+
+TRAMP paths are handled at the dispatch layer (skipped with a summary
+message), so handlers do not need their own remote-path checks.
+
+****** Registering after =(require 'tabspaces)=
+
+Register at top level, *not* inside =(with-eval-after-load 'THIRD-PARTY ...)=.
+If =tabspaces-session-auto-restore= is =t=, =tabspaces-mode 1= triggers a
+restore immediately on startup; if your vterm handler is wrapped in
+=(with-eval-after-load 'vterm ...)= the registration has not yet fired
+when the restore runs, and any =:kind vterm= records are reported as
+unknown kinds (single summary message) and skipped. Calling =M-x vterm=
+later loads vterm and runs the registration -- but the records are
+already gone from the session.
+
+The canonical pattern shown above puts =(require 'vterm)= inside the
+restore-fn body, so the third-party package loads only when a record of
+that kind is actually being restored. For users whose package is not
+pre-compiled, the first restore pays the one-time package-load cost.
+
+****** Caveats
+
+- *Cross-tab name collisions*: per-tab dedup wins over name preservation.
+  If two tabs each saved a buffer named =*eshell*=, restoring the second
+  tab's eshell creates a fresh buffer (typically with a =<N>= suffix) so
+  workspace isolation is maintained.
+- *TRAMP*: remote paths are skipped on restore with a summary message
+  ("tabspaces: N remote buffer(s) skipped (TRAMP)") rather than connecting
+  synchronously per buffer. Re-open remote buffers manually after restore.
+- *Shell semantics*: restored shell-mode buffers are fresh processes at
+  the saved =default-directory= -- no command history, no running state.
+  Users with named shells like =*shell-prod*= who depend on history should
+  know the restored buffer starts empty.
+- *Single-frame restore*: =tabspaces-restore-session= drives the current
+  frame's tabs. Calling it on a second frame performs a second full
+  restore; the dedup check sees the first frame's buffers as foreign and
+  creates fresh ones.
+- *One-way backward compat*: session files written by this version include
+  plist records that older versions cannot read. Downgrading requires
+  deleting any saved session files first.
+
+****** More example handlers
+
+#+begin_src elisp
+;; term-mode (and ansi-term) -- spawns a PTY at the saved directory.
+(tabspaces-register-buffer-kind
+ 'term
+ (lambda (b)
+   (with-current-buffer b
+     (when (derived-mode-p 'term-mode)
+       (list :kind 'term
+             :dir default-directory
+             :name (buffer-name)))))
+ (lambda (rec)
+   (let ((name (plist-get rec :name))
+         (dir  (plist-get rec :dir)))
+     (or (tabspaces--reuse-existing-buffer name)
+         (condition-case err
+             (let* ((default-directory dir)
+                    (program (or explicit-shell-file-name
+                                 (getenv "SHELL")
+                                 shell-file-name)))
+               ;; ansi-term wraps make-term with a user-provided buffer
+               ;; name, sidestepping (term)'s hardcoded *terminal* name.
+               (ansi-term program (substring name 1 -1)))
+           (error
+            (message "tabspaces: term restore skipped (%s): %S" dir err)
+            nil))))))
+
+;; ielm -- Emacs Lisp REPL.
+(tabspaces-register-buffer-kind
+ 'ielm
+ (lambda (b)
+   (with-current-buffer b
+     (when (derived-mode-p 'inferior-emacs-lisp-mode)
+       (list :kind 'ielm
+             :dir default-directory
+             :name (buffer-name)))))
+ (lambda (rec)
+   (let ((name (plist-get rec :name))
+         (dir  (plist-get rec :dir)))
+     (or (tabspaces--reuse-existing-buffer name)
+         (condition-case err
+             (let ((default-directory dir))
+               (ielm name))
+           (error
+            (message "tabspaces: ielm restore skipped (%s): %S" dir err)
+            nil))))))
+#+end_src
 
 *** Additional Customization
 
