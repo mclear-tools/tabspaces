@@ -309,9 +309,9 @@ allowing you to selectively save different types of workspaces.
 In addition to file-visiting buffers, tabspaces ships handlers that save and
 restore =dired=, =eshell=, and =shell= buffers as part of a session. For
 other buffer kinds (=term=, =vterm=, =eat=, =ielm=, etc.) tabspaces exposes a
-small registration API; users wire up the kinds they care about in their own
-config. The package itself does not depend on any third-party terminal or
-REPL package.
+small registration API so users can wire up the kinds they care about in
+their own config. The package itself does not depend on any third-party
+terminal or REPL package.
 
 The save-side handler captures =default-directory= and the buffer name. The
 restore-side handler creates a fresh buffer at the saved directory. Running
@@ -347,8 +347,8 @@ set the final layout.
 (tabspaces-register-buffer-kind
  'vterm
  ;; SAVE-FN: only fires for vterm-mode buffers. Safe to define
- ;; before vterm itself is loaded -- derived-mode-p returns nil
- ;; for unloaded modes.
+ ;; before vterm itself is loaded, because derived-mode-p returns
+ ;; nil for unloaded modes.
  (lambda (b)
    (with-current-buffer b
      (when (derived-mode-p 'vterm-mode)
@@ -400,9 +400,9 @@ pre-compiled, the first restore pays the one-time package-load cost.
   ("tabspaces: N remote buffer(s) skipped (TRAMP)") rather than connecting
   synchronously per buffer. Re-open remote buffers manually after restore.
 - *Shell semantics*: restored shell-mode buffers are fresh processes at
-  the saved =default-directory= -- no command history, no running state.
-  Users with named shells like =*shell-prod*= who depend on history should
-  know the restored buffer starts empty.
+  the saved =default-directory=. No command history is preserved, and no
+  running state is revived. Users with named shells like =*shell-prod*=
+  who depend on history should know the restored buffer starts empty.
 - *Single-frame restore*: =tabspaces-restore-session= drives the current
   frame's tabs. Calling it on a second frame performs a second full
   restore. The dedup check sees the first frame's buffers as foreign and

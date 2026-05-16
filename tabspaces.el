@@ -886,7 +886,7 @@ precedence on save.
 
 Restore-fn bodies must create buffers but must NOT call
 window-configuration-changing functions like `pop-to-buffer-other-window'
-or `delete-other-windows' -- the outer restore loop wraps each
+or `delete-other-windows'.  The outer restore loop wraps each
 record's handler in `save-window-excursion' and then calls
 `window-state-put' to set the final layout."
   (setq tabspaces--buffer-kind-handlers
@@ -898,7 +898,7 @@ record's handler in `save-window-excursion' and then calls
   "Return a serializable session record for buffer B, or nil to skip.
 File-visiting buffers are returned as bare path strings (legacy
 format).  Other buffers are dispatched through
-`tabspaces--buffer-kind-handlers'; the first save-fn that returns
+`tabspaces--buffer-kind-handlers'.  The first save-fn that returns
 non-nil wins."
   (when (buffer-live-p b)
     (with-current-buffer b
@@ -1142,7 +1142,8 @@ in multiple tabs."
 (defun tabspaces--restore-buffer-record (rec)
   "Materialize one buffer from session record REC.
 Returns the buffer created or reused, or nil if skipped.
-Pushes unknown :kind values into the dynamically-bound
+Pushes unknown :kind values (or the sentinel `malformed-record' for
+records that match no expected shape) into the dynamically-bound
 `tabspaces--restore-unknown-kinds' accumulator.  Errors signalled by
 `find-file' on a legacy file record or by a user-registered handler
 are caught and logged so one bad record does not abort the entire
@@ -1166,7 +1167,13 @@ restore loop."
            (message "tabspaces: handler for %s signalled: %S" kind err)
            nil)))
        (t (push kind tabspaces--restore-unknown-kinds)
-          nil))))))
+          nil))))
+   (t
+    ;; Record matched no expected shape (neither bare string nor plist
+    ;; with :kind).  Surface it via the unknown-kinds channel so the
+    ;; user gets a breadcrumb at end of restore instead of a silent drop.
+    (push 'malformed-record tabspaces--restore-unknown-kinds)
+    nil)))
 
 (defun tabspaces--rewrite-window-state (state subst)
   "Return STATE with buffer NAMEs substituted per alist SUBST.
@@ -1175,7 +1182,7 @@ three buffer-name reference shapes in window-state output: leaf
 \(buffer NAME . _) entries, (next-buffers . (NAMES)) forward history
 lists, and (prev-buffers . ((NAME M1 M2) ...)) backward history with
 marker positions.  Substituted prev-buffers entries emit (NAME 1 1)
-so `window--state-put-2' creates valid markers at position 1 -- saved
+so `window--state-put-2' creates valid markers at position 1.  Saved
 point is lost for those slots, but navigation works without relying
 on undocumented nil-marker behaviour."
   (cond
@@ -1333,9 +1340,13 @@ unnecessary tab."
                    ;; A `let' rebinding would shadow the global, so the new
                    ;; `dired-advertise' from `dired-noselect' would mutate
                    ;; the local binding and the restored buffer would never
-                   ;; appear in the global registry.  Use `assoc-delete-all'
-                   ;; (string-key compare); `assq-delete-all' is a no-op on
-                   ;; string keys because it compares with `eq'.
+                   ;; appear in the global registry.  `assoc-delete-all' is
+                   ;; the right tool here because dired keys with strings.
+                   ;; `assq-delete-all' is a no-op on string keys because it
+                   ;; compares with `eq'.  Note: in a multi-frame setup
+                   ;; this `setq' is process-global, so a session restore
+                   ;; on frame B can orphan frame A's dired buffer from
+                   ;; the registry until that buffer is reverted.
                    (setq dired-buffers
                          (assoc-delete-all (expand-file-name dir)
                                            dired-buffers))
@@ -1358,10 +1369,12 @@ unnecessary tab."
              :dir default-directory
              :name (buffer-name)))))
  (lambda (rec)
-   ;; Load eshell up front so `eshell-buffer-name' is declared as a
-   ;; special variable before we let-bind it.  Otherwise the let
-   ;; creates a lexical binding and eshell.el's defcustom fails on
-   ;; first load with "Defining as dynamic an already lexical var".
+   ;; Load eshell so `(eshell t)' below has its function definitions
+   ;; available.  The top-of-file `defvar eshell-buffer-name' already
+   ;; declares the symbol special for the byte-compiler, so this
+   ;; `require' is not for dynamic-binding semantics.  It exists to
+   ;; force eshell.el to load before a user's first restore, in case
+   ;; no earlier command has triggered the autoload.
    (require 'eshell)
    (let ((name (plist-get rec :name))
          (dir  (plist-get rec :dir)))
@@ -1399,8 +1412,9 @@ unnecessary tab."
              (condition-case err
                  (let* ((default-directory dir)
                         ;; `shell' reuses an existing buffer with the given
-                        ;; name (cross-tab leak risk); `generate-new-buffer-name'
-                        ;; pre-resolves to a guaranteed-unique name.
+                        ;; name, which would be a cross-tab leak.
+                        ;; `generate-new-buffer-name' pre-resolves to a
+                        ;; guaranteed-unique name.
                         (buf (shell (generate-new-buffer-name name))))
                    buf)
                (error
