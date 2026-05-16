@@ -2,7 +2,7 @@
 
 ;; Author: Colin McLear <mclear@fastmail.com>
 ;; Maintainer: Colin McLear
-;; Version: 1.7.1
+;; Version: 1.8.0
 ;; Package-Requires: ((emacs "27.1") (project "0.8.1"))
 ;; Keywords: convenience, frames
 ;; Homepage: https://github.com/mclear-tools/tabspaces
@@ -1388,9 +1388,12 @@ unnecessary tab."
                         ;; `<N>' suffix on collision.  Cross-tab collisions
                         ;; are captured by the restore loop's substitution
                         ;; alist for window-state-put.
-                        (eshell-buffer-name name)
-                        (buf (eshell t)))
-                   buf)
+                        (eshell-buffer-name name))
+                   (eshell t)
+                   ;; `(eshell t)' selects the new buffer, so
+                   ;; `(current-buffer)' is the reliable handle across
+                   ;; Emacs versions where the return value may differ.
+                   (current-buffer))
                (error
                 (message "tabspaces: eshell restore skipped (%s): %S" dir err)
                 nil))))))))

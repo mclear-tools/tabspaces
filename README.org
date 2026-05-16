@@ -385,6 +385,13 @@ unknown kinds (single summary message) and skipped. Calling =M-x vterm=
 later loads vterm and runs the registration, but the records are
 already gone from the session.
 
+For the same reason, all handler registrations must run *before* the
+call to =(tabspaces-mode 1)= when auto-restore is enabled. Users of
+=use-package= with =:defer t= blocks should be especially careful here:
+put =tabspaces-register-buffer-kind= calls at top level (or inside a
+=:config= block on tabspaces itself), not inside a deferred block for
+the third-party package being registered.
+
 The canonical pattern shown above puts =(require 'vterm)= inside the
 restore-fn body, so the third-party package loads only when a record of
 that kind is actually being restored. For users whose package is not
@@ -439,7 +446,9 @@ pre-compiled, the first restore pays the one-time package-load cost.
             (message "tabspaces: term restore skipped (%s): %S" dir err)
             nil))))))
 
-;; ielm -- Emacs Lisp REPL.
+;; ielm -- Emacs Lisp REPL.  `ielm' did not accept a BUF-NAME argument
+;; until Emacs 29.1, so call it with no args and rename the resulting
+;; buffer when the saved name is free.
 (tabspaces-register-buffer-kind
  'ielm
  (lambda (b)
@@ -454,7 +463,13 @@ pre-compiled, the first restore pays the one-time package-load cost.
      (or (tabspaces-reuse-existing-buffer name)
          (condition-case err
              (let ((default-directory dir))
-               (ielm name))
+               (ielm)
+               (let ((buf (current-buffer)))
+                 (when (and buf
+                            (not (equal name (buffer-name buf)))
+                            (not (get-buffer name)))
+                   (with-current-buffer buf (rename-buffer name)))
+                 buf))
            (error
             (message "tabspaces: ielm restore skipped (%s): %S" dir err)
             nil))))))
