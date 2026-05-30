@@ -1,3 +1,10 @@
+* This project has moved to Codeberg
+Active development, issues, and releases are now at https://codeberg.org/mclear-tools/tabspaces
+
+This GitHub repository is a read-only archived mirror and is no longer updated.
+
+-----
+
 #+title: Tabspaces
 #+author: Colin McLear
 #+language: en
